@@ -86,10 +86,10 @@ enum MainMenu {
 
     private static func imageMenu() -> NSMenu {
         let menu = NSMenu(title: "Image")
-        let left = String(UnicodeScalar(NSLeftArrowFunctionKey)!)
-        let right = String(UnicodeScalar(NSRightArrowFunctionKey)!)
-        menu.addItem(item("Next Image", #selector(CanvasView.nextImage(_:)), right, []))
-        menu.addItem(item("Previous Image", #selector(CanvasView.previousImage(_:)), left, []))
+        let up = String(UnicodeScalar(NSUpArrowFunctionKey)!)
+        let down = String(UnicodeScalar(NSDownArrowFunctionKey)!)
+        menu.addItem(item("Next Image", #selector(CanvasView.nextImage(_:)), down, []))
+        menu.addItem(item("Previous Image", #selector(CanvasView.previousImage(_:)), up, []))
         menu.addItem(item("Flip to Last Viewed", #selector(CanvasView.flipImages(_:)), "\t", []))
         menu.addItem(.separator())
         menu.addItem(item("Reset Alignment", #selector(CanvasView.resetAlignment(_:)), "r", [.option]))

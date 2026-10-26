@@ -26,11 +26,11 @@ Quit the app before reinstalling.
 | --- | --- |
 | 1–9 | Show image |
 | Tab | Flip to the last viewed image |
-| ← → | Previous / next image |
+| ↑ ↓ | Previous / next image |
 | S | Split view (lower-numbered image on the left) |
 | D | Difference view |
 | N | Noise view |
-| ↑ ↓ or [ ] | Difference gain, or noise view strength |
+| ← → or [ ] | Difference gain, or noise view strength |
 | , . | Noise view radius |
 | P | Pixels / smooth filtering |
 | 0 or F | Fit |
