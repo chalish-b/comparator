@@ -12,6 +12,12 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
         target: nil,
         action: nil
     )
+    private let noiseControl = NSSegmentedControl(
+        labels: ["Noise"],
+        trackingMode: .selectAny,
+        target: nil,
+        action: nil
+    )
     private let filterControl = NSSegmentedControl(
         labels: ["Pixels", "Smooth"],
         trackingMode: .selectOne,
@@ -60,6 +66,8 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
         modeControl.target = self
         modeControl.action = #selector(modeChanged(_:))
         filterControl.target = self
+        noiseControl.target = self
+        noiseControl.action = #selector(noiseChanged(_:))
         filterControl.action = #selector(filterChanged(_:))
 
         let toolbar = NSToolbar(identifier: "ComparisonToolbar")
@@ -89,6 +97,7 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
         case .difference: 2
         }
         filterControl.selectedSegment = imageSet.pixelated ? 0 : 1
+        noiseControl.setSelected(imageSet.noiseView, forSegment: 0)
     }
 
     @objc private func modeChanged(_ sender: NSSegmentedControl) {
@@ -97,6 +106,11 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
         case 2: .difference
         default: .single
         }
+        window?.makeFirstResponder(canvas)
+    }
+
+    @objc private func noiseChanged(_ sender: NSSegmentedControl) {
+        canvas.toggleNoiseView(sender)
         window?.makeFirstResponder(canvas)
     }
 
@@ -132,9 +146,10 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
 
     private static let modeItem = NSToolbarItem.Identifier("mode")
     private static let filterItem = NSToolbarItem.Identifier("filter")
+    private static let noiseItem = NSToolbarItem.Identifier("noise")
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.toggleSidebar, .sidebarTrackingSeparator, .flexibleSpace, Self.modeItem, Self.filterItem]
+        [.toggleSidebar, .sidebarTrackingSeparator, .flexibleSpace, Self.modeItem, Self.noiseItem, Self.filterItem]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -152,6 +167,10 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
             item.view = modeControl
             item.label = "View"
             item.toolTip = "Split (S), Difference (D)"
+        case Self.noiseItem:
+            item.view = noiseControl
+            item.label = "Noise"
+            item.toolTip = "Noise view (N): flat areas gray, faint color patches as colored blobs"
         case Self.filterItem:
             item.view = filterControl
             item.label = "Filtering"

@@ -29,9 +29,13 @@ final class ComparisonSet {
         static let alignment = Change(rawValue: 1 << 4)
         /// An image was reloaded after changing on disk; see `lastReloaded`.
         static let reload = Change(rawValue: 1 << 5)
+        /// A noise view image finished computing.
+        static let noise = Change(rawValue: 1 << 6)
     }
 
     static let gains: [CGFloat] = [1, 2, 4, 8, 16, 32, 64]
+    static let noiseGains: [CGFloat] = [5, 10, 15, 25, 40, 60, 100]
+    static let noiseRadii: [CGFloat] = [1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64]
 
     private(set) var items: [ImageItem] = []
     /// The image being shown.
@@ -63,12 +67,37 @@ final class ComparisonSet {
         }
     }
 
+    /// Shows every image as its noise view (see `NoiseFilter`).
+    var noiseView = false {
+        didSet {
+            notify(.display)
+            scheduleNoiseUpdate()
+        }
+    }
+    var noiseGainIndex = UserDefaults.standard.object(forKey: "noiseGainIndex") as? Int ?? 3 {
+        didSet {
+            UserDefaults.standard.set(noiseGainIndex, forKey: "noiseGainIndex")
+            notify(.display)
+            scheduleNoiseUpdate()
+        }
+    }
+    var noiseRadiusIndex = UserDefaults.standard.object(forKey: "noiseRadiusIndex") as? Int ?? 6 {
+        didSet {
+            UserDefaults.standard.set(noiseRadiusIndex, forKey: "noiseRadiusIndex")
+            notify(.display)
+            scheduleNoiseUpdate()
+        }
+    }
+
     private var observers: [@MainActor (Change) -> Void] = []
     private lazy var watcher = FileWatcher { [weak self] in self?.filesChanged() }
 
     var current: ImageItem? { items.first { $0.id == currentID } }
     var other: ImageItem? { items.first { $0.id == otherID } }
     var gain: CGFloat { Self.gains[gainIndex] }
+    var noiseGain: CGFloat { Self.noiseGains[min(noiseGainIndex, Self.noiseGains.count - 1)] }
+    /// Blur radius in pixels of the reference image.
+    var noiseRadius: CGFloat { Self.noiseRadii[min(noiseRadiusIndex, Self.noiseRadii.count - 1)] }
 
     func index(of item: ImageItem) -> Int? {
         items.firstIndex { $0 === item }
@@ -79,6 +108,7 @@ final class ComparisonSet {
     }
 
     private func notify(_ change: Change) {
+        if !change.isDisjoint(with: [.items, .content]) { scheduleNoiseUpdate() }
         for observer in observers { observer(change) }
     }
 
@@ -169,6 +199,16 @@ final class ComparisonSet {
         if index != gainIndex { gainIndex = index }
     }
 
+    func changeNoiseGain(by delta: Int) {
+        let index = max(0, min(Self.noiseGains.count - 1, noiseGainIndex + delta))
+        if index != noiseGainIndex { noiseGainIndex = index }
+    }
+
+    func changeNoiseRadius(by delta: Int) {
+        let index = max(0, min(Self.noiseRadii.count - 1, noiseRadiusIndex + delta))
+        if index != noiseRadiusIndex { noiseRadiusIndex = index }
+    }
+
     // MARK: - Geometry
 
     /// The first loaded image; it defines the world frame.
@@ -232,6 +272,69 @@ final class ComparisonSet {
         item.offset = .zero
         item.scale = 1
         notify(.alignment)
+    }
+
+    // MARK: - Noise view
+
+    /// What the canvas draws for `item`: the image itself, or its noise view when that's on.
+    /// While a noise view is being computed, the previous one (or the image) is shown.
+    func displayImage(for item: ImageItem) -> CGImage? {
+        guard noiseView else { return item.image }
+        return item.noise?.image ?? item.image
+    }
+
+    var isComputingNoise: Bool {
+        noiseView && items.contains { $0.pendingNoiseKey != nil }
+    }
+
+    /// The radius is measured in reference-image pixels, so an upscaled image gets a
+    /// proportionally larger blur and both cover the same area of the picture.
+    private func noiseKey(for item: ImageItem) -> NoiseKey? {
+        guard let image = item.image, let reference else { return nil }
+        let sigma = noiseRadius * item.pixelSize.width / reference.pixelSize.width
+        return NoiseKey(sigma: sigma, gain: noiseGain, source: ObjectIdentifier(image))
+    }
+
+    private var noiseUpdate: Task<Void, Never>?
+
+    /// Coalesces rapid setting changes (e.g. holding a key) into one recompute.
+    private func scheduleNoiseUpdate() {
+        guard noiseView else { return }
+        noiseUpdate?.cancel()
+        noiseUpdate = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(100))
+            guard !Task.isCancelled else { return }
+            self?.updateNoise()
+        }
+    }
+
+    private func updateNoise() {
+        guard noiseView else { return }
+        // Start with the images on screen.
+        var seen = Set<UUID>()
+        let ordered = ([current, other].compactMap { $0 } + items).filter { seen.insert($0.id).inserted }
+
+        for item in ordered {
+            guard let image = item.image, let key = noiseKey(for: item),
+                  item.noise?.key != key, item.pendingNoiseKey != key, item.failedNoiseKey != key
+            else { continue }
+            item.pendingNoiseKey = key
+            let source = SendableImage(image: image)
+
+            Task { [weak self] in
+                let result = await Task.detached(priority: .userInitiated) {
+                    NoiseFilter.render(source.image, sigma: key.sigma, gain: key.gain).map(SendableImage.init)
+                }.value
+                guard let self, item.pendingNoiseKey == key else { return }
+                item.pendingNoiseKey = nil
+                if let result {
+                    item.noise = (key, result.image)
+                } else {
+                    item.failedNoiseKey = key
+                }
+                self.notify(.noise)
+            }
+        }
     }
 
     // MARK: - Loading

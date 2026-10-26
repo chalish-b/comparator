@@ -378,7 +378,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
             layer.actions = Self.noActions
             imageLayers[item.id] = layer
         }
-        if let image = item.image, (layer.contents as AnyObject?) !== image {
+        if let image = imageSet.displayImage(for: item), (layer.contents as AnyObject?) !== image {
             layer.contents = image
         }
         layer.magnificationFilter = imageSet.pixelated ? .nearest : .linear
@@ -451,7 +451,14 @@ final class CanvasView: NSView, NSMenuItemValidation {
         } else if case .difference(_, _, let gain) = composite {
             parts.append("Difference ×\(Int(gain))")
         }
+        if imageSet.noiseView {
+            parts.append(noiseDescription + (imageSet.isComputingNoise ? " (updating…)" : ""))
+        }
         return parts.joined(separator: "  ·  ")
+    }
+
+    private var noiseDescription: String {
+        "Noise ×\(Int(imageSet.noiseGain)), radius \(Int(imageSet.noiseRadius)) px"
     }
 
     private static func format(percent: CGFloat) -> String {
@@ -478,7 +485,9 @@ final class CanvasView: NSView, NSMenuItemValidation {
         ← →          Previous / next image
         S            Split view
         D            Difference view
-        ↑ ↓          Difference gain
+        N            Noise view
+        ↑ ↓          Difference gain / noise strength
+        , .          Noise radius
         P            Pixels / smooth
         0 or F       Fit
         A            Actual pixels (100%)
@@ -651,6 +660,9 @@ final class CanvasView: NSView, NSMenuItemValidation {
         case "r" where option: resetAlignment(nil)
         case "[": decreaseGain(nil)
         case "]": increaseGain(nil)
+        case "n": toggleNoiseView(nil)
+        case ",", "<": decreaseNoiseRadius(nil)
+        case ".", ">": increaseNoiseRadius(nil)
         case "h", "?", "/": toggleHelp(nil)
         default: super.keyDown(with: event)
         }
@@ -693,14 +705,39 @@ final class CanvasView: NSView, NSMenuItemValidation {
         flash(imageSet.alignOverlay == .difference ? "Align overlay: Difference" : "Align overlay: Onion skin")
     }
 
+    /// Adjusts the difference gain in difference view, otherwise the noise view strength.
     @objc func increaseGain(_ sender: Any?) {
-        guard imageSet.mode == .difference else { return }
-        imageSet.changeGain(by: 1)
+        changeGain(by: 1)
     }
 
     @objc func decreaseGain(_ sender: Any?) {
-        guard imageSet.mode == .difference else { return }
-        imageSet.changeGain(by: -1)
+        changeGain(by: -1)
+    }
+
+    private func changeGain(by delta: Int) {
+        if imageSet.mode == .difference {
+            imageSet.changeGain(by: delta)
+        } else if imageSet.noiseView {
+            imageSet.changeNoiseGain(by: delta)
+            flash(noiseDescription)
+        }
+    }
+
+    @objc func toggleNoiseView(_ sender: Any?) {
+        imageSet.noiseView.toggle()
+        flash(imageSet.noiseView ? noiseDescription : "Noise view off")
+    }
+
+    @objc func increaseNoiseRadius(_ sender: Any?) {
+        guard imageSet.noiseView else { return }
+        imageSet.changeNoiseRadius(by: 1)
+        flash(noiseDescription)
+    }
+
+    @objc func decreaseNoiseRadius(_ sender: Any?) {
+        guard imageSet.noiseView else { return }
+        imageSet.changeNoiseRadius(by: -1)
+        flash(noiseDescription)
     }
 
     @objc func zoomToFit(_ sender: Any?) {
@@ -765,8 +802,12 @@ final class CanvasView: NSView, NSMenuItemValidation {
             menuItem.state = imageSet.pixelated ? .on : .off
         case #selector(toggleAlignOverlay(_:)):
             menuItem.state = imageSet.alignOverlay == .onion ? .on : .off
+        case #selector(toggleNoiseView(_:)):
+            menuItem.state = imageSet.noiseView ? .on : .off
         case #selector(increaseGain(_:)), #selector(decreaseGain(_:)):
-            return imageSet.mode == .difference
+            return imageSet.mode == .difference || imageSet.noiseView
+        case #selector(increaseNoiseRadius(_:)), #selector(decreaseNoiseRadius(_:)):
+            return imageSet.noiseView
         case #selector(resetAlignment(_:)):
             return imageSet.current?.isAdjusted == true
         case #selector(nextImage(_:)), #selector(previousImage(_:)), #selector(flipImages(_:)):

@@ -17,6 +17,11 @@ final class ImageItem {
     /// Scale applied on top of the default placement, around the image's center.
     var scale: CGFloat = 1
 
+    /// The noise view of `image`, and the settings it was computed with.
+    var noise: (key: NoiseKey, image: CGImage)?
+    var pendingNoiseKey: NoiseKey?
+    var failedNoiseKey: NoiseKey?
+
     /// Incremented per load request so stale decodes are dropped.
     var generation = 0
     var failedReloads = 0
@@ -28,6 +33,13 @@ final class ImageItem {
     var name: String { url.lastPathComponent }
     var isLoaded: Bool { image != nil }
     var isAdjusted: Bool { offset != .zero || scale != 1 }
+}
+
+/// The inputs a noise view image was computed from.
+struct NoiseKey: Equatable, Sendable {
+    let sigma: CGFloat
+    let gain: CGFloat
+    let source: ObjectIdentifier
 }
 
 /// Modification date and size, used to detect when a file changed on disk.
