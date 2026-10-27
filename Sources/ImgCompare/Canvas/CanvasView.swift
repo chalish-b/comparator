@@ -535,7 +535,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
         ⌘T           New set
         ⌘O           Open images as a new set
         ⇧⌘O          Add images to this set
-        ⌃⌘S          Show / hide sidebar
+        ⌘S           Show / hide sidebar
         """
 
     // MARK: - Mouse
