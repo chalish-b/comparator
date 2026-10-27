@@ -548,7 +548,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
         S            Split view
         D            Difference view
         N            Noise view
-        ← →          Difference gain / noise strength
+        [ ]          Difference gain / noise strength
         , .          Noise radius
         P            Pixels / smooth
         0 or F       Fit
@@ -704,8 +704,8 @@ final class CanvasView: NSView, NSMenuItemValidation {
         case 48: flipImages(nil); return
         case 51, 117: removeCurrentImage(nil); return
         case 53: escape(); return
-        case 123: option ? nudge(-nudgeStep, 0) : decreaseGain(nil); return
-        case 124: option ? nudge(nudgeStep, 0) : increaseGain(nil); return
+        case 123 where option: nudge(-nudgeStep, 0); return
+        case 124 where option: nudge(nudgeStep, 0); return
         case 125: option ? nudge(0, nudgeStep) : nextImage(nil); return
         case 126: option ? nudge(0, -nudgeStep) : previousImage(nil); return
         default: break

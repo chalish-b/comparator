@@ -30,7 +30,7 @@ Quit the app before reinstalling.
 | S | Split view (lower-numbered image on the left) |
 | D | Difference view |
 | N | Noise view |
-| ← → or [ ] | Difference gain, or noise view strength |
+| [ ] | Difference gain, or noise view strength |
 | , . | Noise view radius |
 | P | Pixels / smooth filtering |
 | 0 or F | Fit |
