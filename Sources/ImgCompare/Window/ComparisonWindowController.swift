@@ -6,23 +6,20 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
     let canvas: CanvasView
     var onClose: (() -> Void)?
 
-    private let modeControl = NSSegmentedControl(
-        labels: ["Single", "Split", "Difference"],
-        trackingMode: .selectOne,
-        target: nil,
-        action: nil
+    private let modeControl = ToolbarSegments(
+        symbols: ["rectangle", "rectangle.split.2x1", "circle.lefthalf.filled"],
+        toolTips: ["Single", "Split (S)", "Difference (D)"],
+        trackingMode: .selectOne
     )
-    private let noiseControl = NSSegmentedControl(
-        labels: ["Noise"],
-        trackingMode: .selectAny,
-        target: nil,
-        action: nil
+    private let noiseControl = ToolbarSegments(
+        symbols: ["waveform.path"],
+        toolTips: ["Noise (N)"],
+        trackingMode: .selectAny
     )
-    private let filterControl = NSSegmentedControl(
-        labels: ["Pixels", "Smooth"],
-        trackingMode: .selectOne,
-        target: nil,
-        action: nil
+    private let filterControl = ToolbarSegments(
+        symbols: ["square.grid.3x3"],
+        toolTips: ["Pixels (P)"],
+        trackingMode: .selectAny
     )
 
     init() {
@@ -69,9 +66,9 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
 
         modeControl.target = self
         modeControl.action = #selector(modeChanged(_:))
-        filterControl.target = self
         noiseControl.target = self
         noiseControl.action = #selector(noiseChanged(_:))
+        filterControl.target = self
         filterControl.action = #selector(filterChanged(_:))
 
         let toolbar = NSToolbar(identifier: "ComparisonToolbar")
@@ -100,7 +97,7 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
         case .split: 1
         case .difference: 2
         }
-        filterControl.selectedSegment = imageSet.pixelated ? 0 : 1
+        filterControl.setSelected(imageSet.pixelated, forSegment: 0)
         noiseControl.setSelected(imageSet.noiseView, forSegment: 0)
     }
 
@@ -119,7 +116,7 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
     }
 
     @objc private func filterChanged(_ sender: NSSegmentedControl) {
-        imageSet.pixelated = sender.selectedSegment == 0
+        canvas.togglePixelated(sender)
         window?.makeFirstResponder(canvas)
     }
 
@@ -153,7 +150,7 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
     private static let noiseItem = NSToolbarItem.Identifier("noise")
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.toggleSidebar, .sidebarTrackingSeparator, .flexibleSpace, Self.modeItem, Self.noiseItem, Self.filterItem]
+        [.toggleSidebar, .sidebarTrackingSeparator, .flexibleSpace, Self.modeItem, .space, Self.noiseItem, .space, Self.filterItem]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -170,19 +167,52 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
         case Self.modeItem:
             item.view = modeControl
             item.label = "View"
-            item.toolTip = "Split (S), Difference (D)"
         case Self.noiseItem:
             item.view = noiseControl
             item.label = "Noise"
-            item.toolTip = "Noise view (N): flat areas gray, faint color patches as colored blobs"
         case Self.filterItem:
             item.view = filterControl
-            item.label = "Filtering"
-            item.toolTip = "Pixels or smooth filtering when zoomed in (P)"
+            item.label = "Pixels"
         default:
             return nil
         }
         return item
+    }
+}
+
+/// A toolbar segmented control of SF Symbols with a tooltip per segment. Segments share the
+/// width equally, and each tooltip covers its segment's full area.
+final class ToolbarSegments: NSSegmentedControl, NSViewToolTipOwner {
+    private let toolTips: [String]
+
+    init(symbols: [String], toolTips: [String], trackingMode: NSSegmentedControl.SwitchTracking) {
+        self.toolTips = toolTips
+        super.init(frame: .zero)
+        segmentCount = symbols.count
+        self.trackingMode = trackingMode
+        segmentDistribution = .fillEqually
+        for (segment, symbol) in symbols.enumerated() {
+            setImage(NSImage(systemSymbolName: symbol, accessibilityDescription: toolTips[segment]), forSegment: segment)
+        }
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func layout() {
+        super.layout()
+        removeAllToolTips()
+        let width = bounds.width / CGFloat(segmentCount)
+        for segment in 0..<segmentCount {
+            let rect = CGRect(x: bounds.minX + CGFloat(segment) * width, y: bounds.minY, width: width, height: bounds.height)
+            addToolTip(rect, owner: self, userData: nil)
+        }
+    }
+
+    func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData: UnsafeMutableRawPointer?) -> String {
+        let width = bounds.width / CGFloat(segmentCount)
+        let segment = Int((point.x - bounds.minX) / width)
+        return toolTips[max(0, min(segment, toolTips.count - 1))]
     }
 }
 
