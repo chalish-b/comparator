@@ -7,8 +7,15 @@ cd "$(dirname "$0")/.."
 APP_NAME=ImgCompare
 APP="build/$APP_NAME.app"
 
-xcrun swift build -c release --product "$APP_NAME"
-BIN_DIR="$(xcrun swift build -c release --show-bin-path)"
+# macOS picks the app's look (Liquid Glass or the older design) from the SDK
+# version recorded in the binary. SwiftPM records the deployment target there,
+# so pass the installed SDK's version to the linker explicitly.
+MIN_MACOS="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' Resources/Info.plist)"
+SDK_VERSION="$(xcrun --show-sdk-version)"
+BUILD_FLAGS=(-c release -Xlinker -platform_version -Xlinker macos -Xlinker "$MIN_MACOS" -Xlinker "$SDK_VERSION")
+
+xcrun swift build "${BUILD_FLAGS[@]}" --product "$APP_NAME"
+BIN_DIR="$(xcrun swift build "${BUILD_FLAGS[@]}" --show-bin-path)"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
