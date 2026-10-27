@@ -5,15 +5,32 @@ import AppKit
 final class HUDLabel: NSView {
     private let field = NSTextField(labelWithString: "")
     private var glass: NSView?
+    private let symbol: NSImage?
 
-    init(fontSize: CGFloat, weight: NSFont.Weight = .regular, monospaced: Bool = false) {
+    /// `symbol` names an SF Symbol shown before the text. `monospacedDigits` keeps the label
+    /// steady while numbers change.
+    init(
+        fontSize: CGFloat,
+        weight: NSFont.Weight = .regular,
+        monospaced: Bool = false,
+        monospacedDigits: Bool = false,
+        symbol: String? = nil
+    ) {
+        self.symbol = symbol.map {
+            NSImage(systemSymbolName: $0, accessibilityDescription: nil)!
+                .withSymbolConfiguration(.init(pointSize: fontSize, weight: .medium))!
+        }
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
         isHidden = true
 
-        field.font = monospaced
-            ? .monospacedSystemFont(ofSize: fontSize, weight: weight)
-            : .systemFont(ofSize: fontSize, weight: weight)
+        field.font = if monospaced {
+            .monospacedSystemFont(ofSize: fontSize, weight: weight)
+        } else if monospacedDigits {
+            .monospacedDigitSystemFont(ofSize: fontSize, weight: weight)
+        } else {
+            .systemFont(ofSize: fontSize, weight: weight)
+        }
         field.maximumNumberOfLines = 0
         field.lineBreakMode = .byTruncatingMiddle
         field.translatesAutoresizingMaskIntoConstraints = false
@@ -55,11 +72,47 @@ final class HUDLabel: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
 
+    var font: NSFont { field.font! }
+    var textColor: NSColor { field.textColor! }
+
     var text: String? {
         get { isHidden ? nil : field.stringValue }
         set {
-            field.stringValue = newValue ?? ""
-            isHidden = newValue?.isEmpty ?? true
+            guard let newValue, !newValue.isEmpty else {
+                isHidden = true
+                return
+            }
+            if let symbol {
+                let attachment = NSTextAttachment()
+                attachment.image = symbol
+                let content = NSMutableAttributedString(attachment: attachment)
+                content.append(NSAttributedString(string: "  " + newValue))
+                attributedText = content
+            } else {
+                field.stringValue = newValue
+                isHidden = false
+            }
+        }
+    }
+
+    /// Rich text; the label's font and colour fill in wherever the string sets none.
+    var attributedText: NSAttributedString? {
+        get { isHidden ? nil : field.attributedStringValue }
+        set {
+            guard let newValue, newValue.length > 0 else {
+                isHidden = true
+                return
+            }
+            let content = NSMutableAttributedString(attributedString: newValue)
+            let whole = NSRange(location: 0, length: content.length)
+            content.enumerateAttributes(in: whole) { attributes, range, _ in
+                var filled = attributes
+                if filled[.font] == nil { filled[.font] = font }
+                if filled[.foregroundColor] == nil { filled[.foregroundColor] = textColor }
+                content.setAttributes(filled, range: range)
+            }
+            field.attributedStringValue = content
+            isHidden = false
         }
     }
 

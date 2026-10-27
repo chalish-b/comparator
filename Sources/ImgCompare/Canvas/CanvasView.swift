@@ -40,7 +40,17 @@ final class CanvasView: NSView, NSMenuItemValidation {
 
     private let flashLabel = HUDLabel(fontSize: 12, weight: .medium)
     private let centerTag = HUDLabel(fontSize: 13, weight: .semibold)
-    private let statusLabel = HUDLabel(fontSize: 11)
+    private let zoomPill = HUDLabel(fontSize: 11, monospacedDigits: true, symbol: "magnifyingglass")
+    private let differencePill = HUDLabel(fontSize: 11, monospacedDigits: true, symbol: "circle.lefthalf.filled")
+    private let aligningPill = HUDLabel(fontSize: 11, symbol: "move.3d")
+    private let offsetPill = HUDLabel(
+        fontSize: 11, monospacedDigits: true, symbol: "arrow.up.and.down.and.arrow.left.and.right"
+    )
+    private let scalePill = HUDLabel(
+        fontSize: 11, monospacedDigits: true, symbol: "arrow.up.left.and.down.right.magnifyingglass"
+    )
+    private let noisePill = HUDLabel(fontSize: 11, monospacedDigits: true, symbol: "waveform.path")
+    private let statusRow = NSStackView()
     private let leftTag = HUDLabel(fontSize: 12, weight: .medium)
     private let rightTag = HUDLabel(fontSize: 12, weight: .medium)
     private let messageLabel = HUDLabel(fontSize: 14, weight: .medium)
@@ -102,10 +112,18 @@ final class CanvasView: NSView, NSMenuItemValidation {
     }
 
     private func setUpHUD() {
-        for label in [flashLabel, centerTag, statusLabel, leftTag, rightTag, messageLabel, helpLabel] {
+        for label in [flashLabel, centerTag, leftTag, rightTag, messageLabel, helpLabel] {
             addSubview(label)
         }
-        statusLabel.alphaValue = 0.85
+        for pill in [zoomPill, aligningPill, offsetPill, scalePill, differencePill, noisePill] {
+            statusRow.addArrangedSubview(pill)
+        }
+        statusRow.orientation = .horizontal
+        statusRow.spacing = 6
+        statusRow.alignment = .centerY
+        statusRow.translatesAutoresizingMaskIntoConstraints = false
+        statusRow.alphaValue = 0.85
+        addSubview(statusRow)
         helpLabel.text = Self.helpText
         helpLabel.isHidden = true
 
@@ -119,9 +137,9 @@ final class CanvasView: NSView, NSMenuItemValidation {
             flashLabel.topAnchor.constraint(equalTo: safe.topAnchor, constant: 48),
             flashLabel.widthAnchor.constraint(lessThanOrEqualTo: safe.widthAnchor, multiplier: 0.5),
 
-            statusLabel.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 12),
-            statusLabel.bottomAnchor.constraint(equalTo: safe.bottomAnchor, constant: -12),
-            statusLabel.trailingAnchor.constraint(lessThanOrEqualTo: safe.trailingAnchor, constant: -12),
+            statusRow.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 12),
+            statusRow.bottomAnchor.constraint(equalTo: safe.bottomAnchor, constant: -12),
+            statusRow.trailingAnchor.constraint(lessThanOrEqualTo: safe.trailingAnchor, constant: -12),
 
             leftTag.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 12),
             leftTag.topAnchor.constraint(equalTo: safe.topAnchor, constant: 12),
@@ -430,9 +448,24 @@ final class CanvasView: NSView, NSMenuItemValidation {
 
     // MARK: - HUD
 
-    private func label(for item: ImageItem) -> String {
+    /// The image's number, styled like the sidebar's key, followed by its name.
+    private func tag(for item: ImageItem, in label: HUDLabel) -> NSAttributedString {
         let number = (imageSet.index(of: item) ?? 0) + 1
-        return "\(number) · \(item.name)"
+        let tag = NSMutableAttributedString(string: "\(number)", attributes: [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: label.font.pointSize, weight: .semibold),
+            .foregroundColor: NSColor.secondaryLabelColor,
+        ])
+        tag.append(NSAttributedString(string: "  " + item.name))
+        return tag
+    }
+
+    private func tag(for top: ImageItem, _ joiner: String, _ bottom: ImageItem?, in label: HUDLabel) -> NSAttributedString {
+        let combined = NSMutableAttributedString(attributedString: tag(for: top, in: label))
+        if let bottom {
+            combined.append(NSAttributedString(string: joiner))
+            combined.append(tag(for: bottom, in: label))
+        }
+        return combined
     }
 
     private func updateHUD(_ composite: Composite) {
@@ -451,41 +484,43 @@ final class CanvasView: NSView, NSMenuItemValidation {
         case .empty:
             break
         case .single(let item):
-            centerTag.text = label(for: item)
+            centerTag.attributedText = tag(for: item, in: centerTag)
         case .split(let left, let right):
-            leftTag.text = label(for: left)
-            rightTag.text = label(for: right)
+            leftTag.attributedText = tag(for: left, in: leftTag)
+            rightTag.attributedText = tag(for: right, in: rightTag)
         case .difference(let top, let bottom, _):
-            centerTag.text = bottom.map { "\(label(for: top)) − \(label(for: $0))" } ?? label(for: top)
+            centerTag.attributedText = tag(for: top, "  −  ", bottom, in: centerTag)
         case .onion(let top, let bottom):
-            centerTag.text = bottom.map { "\(label(for: top)) over \(label(for: $0))" } ?? label(for: top)
+            centerTag.attributedText = tag(for: top, "  over  ", bottom, in: centerTag)
         }
 
-        statusLabel.text = statusText(composite)
+        updateStatusRow(composite)
     }
 
-    private func statusText(_ composite: Composite) -> String? {
-        if case .empty = composite { return nil }
-        var parts = [Self.format(percent: zoomPercent)]
+    private func updateStatusRow(_ composite: Composite) {
+        for pill in [zoomPill, aligningPill, offsetPill, scalePill, differencePill, noisePill] {
+            pill.text = nil
+        }
+        if case .empty = composite { return }
+        zoomPill.text = Self.format(percent: zoomPercent)
 
         if isAligning, let current = imageSet.current {
             let unit = imageSet.worldPerPixel(current)
             let dx = unit > 0 ? current.offset.x / unit : 0
             let dy = unit > 0 ? current.offset.y / unit : 0
-            parts.append("Aligning")
-            parts.append(String(format: "offset %+.1f, %+.1f px", dx, dy))
-            parts.append(String(format: "scale %.2f%%", current.scale * 100))
+            aligningPill.text = "Aligning"
+            offsetPill.text = String(format: "%+.1f, %+.1f px", dx, dy)
+            scalePill.text = String(format: "%.2f%%", current.scale * 100)
         } else if case .difference(_, _, let gain) = composite {
-            parts.append("Difference ×\(Int(gain))")
+            differencePill.text = "×\(Int(gain))"
         }
         if imageSet.noiseView {
-            parts.append(noiseDescription + (imageSet.isComputingNoise ? " (updating…)" : ""))
+            noisePill.text = noiseDescription + (imageSet.isComputingNoise ? " (updating…)" : "")
         }
-        return parts.joined(separator: "  ·  ")
     }
 
     private var noiseDescription: String {
-        "Noise ×\(Int(imageSet.noiseGain)), radius \(Int(imageSet.noiseRadius)) px"
+        "×\(Int(imageSet.noiseGain)), radius \(Int(imageSet.noiseRadius)) px"
     }
 
     private static func format(percent: CGFloat) -> String {
@@ -752,25 +787,25 @@ final class CanvasView: NSView, NSMenuItemValidation {
             imageSet.changeGain(by: delta)
         } else if imageSet.noiseView {
             imageSet.changeNoiseGain(by: delta)
-            flash(noiseDescription)
+            flash("Noise " + noiseDescription)
         }
     }
 
     @objc func toggleNoiseView(_ sender: Any?) {
         imageSet.noiseView.toggle()
-        flash(imageSet.noiseView ? noiseDescription : "Noise view off")
+        flash(imageSet.noiseView ? "Noise " + noiseDescription : "Noise view off")
     }
 
     @objc func increaseNoiseRadius(_ sender: Any?) {
         guard imageSet.noiseView else { return }
         imageSet.changeNoiseRadius(by: 1)
-        flash(noiseDescription)
+        flash("Noise " + noiseDescription)
     }
 
     @objc func decreaseNoiseRadius(_ sender: Any?) {
         guard imageSet.noiseView else { return }
         imageSet.changeNoiseRadius(by: -1)
-        flash(noiseDescription)
+        flash("Noise " + noiseDescription)
     }
 
     @objc func zoomToFit(_ sender: Any?) {
