@@ -191,7 +191,11 @@ final class CanvasView: NSView, NSMenuItemValidation {
         )
     }
 
-    private var dividerX: CGFloat { (bounds.width * imageSet.splitPosition).rounded() }
+    /// The split divider's position within the visible area, which excludes the sidebar.
+    private var dividerX: CGFloat {
+        let visible = safeAreaRect
+        return (visible.minX + visible.width * imageSet.splitPosition).rounded()
+    }
 
     // MARK: - Camera
 
@@ -341,7 +345,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
             leftClip.addSublayer(imageLayer(for: left, origin: .zero))
             rightClip.addSublayer(imageLayer(for: right, origin: CGPoint(x: x, y: 0)))
             divider.frame = CGRect(x: x - 0.5, y: 0, width: 1, height: bounds.height)
-            knob.frame = CGRect(x: x - 7, y: bounds.midY - 7, width: 14, height: 14)
+            knob.frame = CGRect(x: x - 7, y: safeAreaRect.midY - 7, width: 14, height: 14)
             showsDivider = true
 
         case .difference(let top, let bottom, let gain):
@@ -552,7 +556,8 @@ final class CanvasView: NSView, NSMenuItemValidation {
             drag = .pan(last: point)
             pan(by: CGPoint(x: point.x - last.x, y: point.y - last.y))
         case .divider:
-            imageSet.splitPosition = min(max(point.x / bounds.width, 0), 1)
+            let visible = safeAreaRect
+            imageSet.splitPosition = min(max((point.x - visible.minX) / visible.width, 0), 1)
         case .align(let last):
             drag = .align(last: point)
             if let current = imageSet.current {

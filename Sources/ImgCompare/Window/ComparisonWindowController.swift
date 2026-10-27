@@ -36,6 +36,10 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
         sidebar.maximumThickness = 520
         let content = NSSplitViewItem(viewController: canvasController)
         content.minimumThickness = 300
+        if #available(macOS 26, *) {
+            // The canvas runs under the floating sidebar and keeps its HUD and fit within the safe area.
+            content.automaticallyAdjustsSafeAreaInsets = true
+        }
 
         let split = NSSplitViewController()
         split.addSplitViewItem(sidebar)
