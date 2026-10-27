@@ -47,7 +47,14 @@ final class CanvasView: NSView, NSMenuItemValidation {
     private let helpLabel = HUDLabel(fontSize: 12, monospaced: true)
     private var flashTask: Task<Void, Never>?
 
-    private static let background = NSColor(white: 0.11, alpha: 1).cgColor
+    /// Canvas colours follow the system appearance: the under-page grey of Finder and Preview
+    /// in light mode, a deep grey in dark mode. The split divider contrasts with the background.
+    private static let background = NSColor(name: nil) { appearance in
+        appearance.isDark ? NSColor(white: 0.11, alpha: 1) : .underPageBackgroundColor
+    }
+    private static let dividerColor = NSColor(name: nil) { appearance in
+        appearance.isDark ? .white : NSColor(white: 0.15, alpha: 1)
+    }
 
     init(set: ComparisonSet) {
         self.imageSet = set
@@ -71,17 +78,14 @@ final class CanvasView: NSView, NSMenuItemValidation {
 
     private func setUpLayers() {
         let root = host.root
-        root.backgroundColor = Self.background
         for clip in [leftClip, rightClip] {
             clip.masksToBounds = true
             clip.anchorPoint = .zero
         }
         group.anchorPoint = .zero
-        divider.backgroundColor = NSColor.white.cgColor
         divider.shadowOpacity = 0.6
         divider.shadowRadius = 2
         divider.shadowOffset = .zero
-        knob.backgroundColor = NSColor.white.cgColor
         knob.cornerRadius = 7
         knob.shadowOpacity = 0.5
         knob.shadowRadius = 3
@@ -94,6 +98,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
         for layer in [group, leftClip, rightClip, divider, knob] {
             layer.actions = Self.noActions
         }
+        applyAppearanceColors()
     }
 
     private func setUpHUD() {
@@ -267,6 +272,24 @@ final class CanvasView: NSView, NSMenuItemValidation {
         render()
     }
 
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyAppearanceColors()
+        render()
+    }
+
+    /// Resolves `color` for this view's current appearance.
+    private func cgColor(_ color: NSColor) -> CGColor {
+        var resolved = color.cgColor
+        effectiveAppearance.performAsCurrentDrawingAppearance { resolved = color.cgColor }
+        return resolved
+    }
+
+    private func applyAppearanceColors() {
+        divider.backgroundColor = cgColor(Self.dividerColor)
+        knob.backgroundColor = cgColor(Self.dividerColor)
+    }
+
     override func viewDidChangeBackingProperties() {
         super.viewDidChangeBackingProperties()
         render()
@@ -327,7 +350,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
         rightClip.sublayers = nil
         group.filters = nil
         group.frame = bounds
-        root.backgroundColor = Self.background
+        root.backgroundColor = cgColor(Self.background)
         var showsDivider = false
 
         let composite = composite()
@@ -858,4 +881,8 @@ final class CanvasView: NSView, NSMenuItemValidation {
         imageSet.add(urls)
         return true
     }
+}
+
+private extension NSAppearance {
+    var isDark: Bool { bestMatch(from: [.aqua, .darkAqua]) == .darkAqua }
 }
