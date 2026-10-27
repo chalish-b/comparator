@@ -17,7 +17,7 @@ Quit the app before reinstalling.
 
 - Select images in Finder → right-click → **Open With → ImgCompare**, or drop them on the Dock icon. Each opens as a new set (window or tab).
 - Drop images or folders onto a window to add them to that set.
-- **⌘N** new empty set, **⌘O** open as a new set, **⇧⌘O** add to the current set.
+- **⌘T** new empty set, **⌘O** open as a new set, **⇧⌘O** add to the current set.
 - Images that change on disk reload automatically, keeping your view.
 
 ## Shortcuts

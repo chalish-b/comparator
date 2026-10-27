@@ -50,7 +50,7 @@ enum MainMenu {
 
     private static func fileMenu() -> NSMenu {
         let menu = NSMenu(title: "File")
-        menu.addItem(item("New Set", #selector(AppDelegate.newDocument(_:)), "n"))
+        menu.addItem(item("New Set", #selector(AppDelegate.newDocument(_:)), "t"))
         menu.addItem(item("Open…", #selector(AppDelegate.openDocument(_:)), "o"))
         menu.addItem(item("Add Images…", #selector(ComparisonWindowController.addImages(_:)), "o", [.command, .shift]))
         menu.addItem(.separator())
