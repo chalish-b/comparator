@@ -73,7 +73,7 @@ The app icon is `Resources/AppIcon.icon`, made with Icon Composer. After editing
 | Pinch, mouse wheel | Zoom |
 | Hold ⌥ | Alignment overlay of the current image over the last viewed one |
 | ⌥ drag | Move the current image |
-| ⌥ arrows | Nudge by 1 px (⇧ for 10 px) |
+| ⌥ arrows | Nudge by 1 px (⇧ for 0.1 px) |
 | ⌥ scroll / pinch | Scale the current image |
 | ⌥R | Reset alignment |
 | O | Alignment overlay style: difference / onion skin |

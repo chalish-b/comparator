@@ -559,7 +559,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
 
         Hold ⌥       Alignment overlay
         ⌥ drag       Move image
-        ⌥ arrows     Nudge 1 px (⇧ for 10 px)
+        ⌥ arrows     Nudge 1 px (⇧ for 0.1 px)
         ⌥ scroll     Scale image
         ⌥ R          Reset alignment
         O            Overlay: difference / onion skin
@@ -698,7 +698,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
             return
         }
         let option = modifiers.contains(.option)
-        let nudgeStep: CGFloat = modifiers.contains(.shift) ? 10 : 1
+        let nudgeStep: CGFloat = modifiers.contains(.shift) ? 0.1 : 1
 
         switch event.keyCode {
         case 48: flipImages(nil); return
