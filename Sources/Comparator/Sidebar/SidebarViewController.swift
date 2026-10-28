@@ -24,7 +24,6 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
         tableView.style = .sourceList
         tableView.rowHeight = 56
         tableView.backgroundColor = .clear
-        tableView.allowsMultipleSelection = true
         // Keyboard input stays with the canvas so shortcuts always work.
         tableView.refusesFirstResponder = true
         tableView.dataSource = self
@@ -58,23 +57,26 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
             tableView.reloadData(forRowIndexes: rows, columnIndexes: [0])
         }
         syncSelection()
+        tableView.enumerateAvailableRowViews { rowView, row in
+            (rowView as? ImageTableRowView)?.isShown = isShownUnselected(row: row)
+        }
     }
 
-    /// Highlights the images on the canvas: the current one, plus the other one in split and
-    /// difference views.
     private func syncSelection() {
         isSyncingSelection = true
         defer { isSyncingSelection = false }
-        guard let current = imageSet.current, let row = imageSet.index(of: current) else {
+        if let current = imageSet.current, let row = imageSet.index(of: current) {
+            tableView.selectRowIndexes([row], byExtendingSelection: false)
+            tableView.scrollRowToVisible(row)
+        } else {
             tableView.deselectAll(nil)
-            return
         }
-        var rows: IndexSet = [row]
-        if imageSet.mode != .single, let other = imageSet.other, let otherRow = imageSet.index(of: other) {
-            rows.insert(otherRow)
-        }
-        tableView.selectRowIndexes(rows, byExtendingSelection: false)
-        tableView.scrollRowToVisible(row)
+    }
+
+    /// Whether `row` is the second image on the canvas in split and difference views.
+    private func isShownUnselected(row: Int) -> Bool {
+        guard imageSet.mode != .single, let other = imageSet.other else { return false }
+        return imageSet.index(of: other) == row
     }
 
     // MARK: - Rows
@@ -90,16 +92,15 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
         return cell
     }
 
-    /// A click shows the clicked image, whatever modifiers are held.
-    func tableView(_ tableView: NSTableView, selectionIndexesForProposedSelection proposed: IndexSet) -> IndexSet {
-        guard !isSyncingSelection, tableView.clickedRow >= 0 else { return proposed }
-        return [tableView.clickedRow]
+    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        let rowView = ImageTableRowView()
+        rowView.isShown = isShownUnselected(row: row)
+        return rowView
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
         guard !isSyncingSelection, let item = imageSet.items[safe: tableView.selectedRow] else { return }
         imageSet.select(item)
-        syncSelection()
     }
 
     /// Which half each image of a split is in, otherwise a Tab marker on the image Tab flips to.

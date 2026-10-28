@@ -106,3 +106,18 @@ final class ImageRowView: NSTableCellView {
         }
     }
 }
+
+/// A sidebar row that can mark its image as shown on the canvas without being selected, with a
+/// faint fill shaped like the selection.
+final class ImageTableRowView: NSTableRowView {
+    var isShown = false {
+        didSet { if isShown != oldValue { needsDisplay = true } }
+    }
+
+    override func drawBackground(in dirtyRect: NSRect) {
+        super.drawBackground(in: dirtyRect)
+        guard isShown, !isSelected else { return }
+        NSColor.unemphasizedSelectedContentBackgroundColor.withAlphaComponent(0.45).setFill()
+        NSBezierPath(roundedRect: bounds.insetBy(dx: 10, dy: 0), xRadius: 5, yRadius: 5).fill()
+    }
+}
