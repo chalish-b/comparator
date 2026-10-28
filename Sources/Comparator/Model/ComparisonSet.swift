@@ -29,7 +29,7 @@ final class ComparisonSet {
         static let content = Change(rawValue: 1 << 1)
         /// The current or other image changed.
         static let selection = Change(rawValue: 1 << 2)
-        /// Mode, split layout or position, gain, pixel filter or align overlay changed.
+        /// Mode, split layout, order or position, gain, pixel filter or align overlay changed.
         static let display = Change(rawValue: 1 << 3)
         /// An image's offset or scale changed.
         static let alignment = Change(rawValue: 1 << 4)
@@ -55,6 +55,10 @@ final class ComparisonSet {
     }
     var splitLayout: SplitLayout = .sideBySide {
         didSet { if splitLayout != oldValue { notify(.display) } }
+    }
+    /// Puts the higher-numbered image on the left or top in split mode.
+    var splitSwapped = false {
+        didSet { notify(.display) }
     }
     /// Divider position in split mode, as a fraction of the canvas width from the left, or
     /// of its height from the top when stacked.
@@ -105,6 +109,13 @@ final class ComparisonSet {
     var current: ImageItem? { items.first { $0.id == currentID } }
     var other: ImageItem? { items.first { $0.id == otherID } }
     var gain: CGFloat { Self.gains[gainIndex] }
+
+    /// The current and other images in split view order: left to right, or top to bottom.
+    var splitPair: (first: ImageItem, second: ImageItem)? {
+        guard let current, let other else { return nil }
+        let currentFirst = ((index(of: current) ?? 0) < (index(of: other) ?? 0)) != splitSwapped
+        return currentFirst ? (current, other) : (other, current)
+    }
     var noiseGain: CGFloat { Self.noiseGains[min(noiseGainIndex, Self.noiseGains.count - 1)] }
     /// Blur radius in pixels of the reference image.
     var noiseRadius: CGFloat { Self.noiseRadii[min(noiseRadiusIndex, Self.noiseRadii.count - 1)] }

@@ -24,6 +24,7 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
         tableView.style = .sourceList
         tableView.rowHeight = 56
         tableView.backgroundColor = .clear
+        tableView.allowsMultipleSelection = true
         // Keyboard input stays with the canvas so shortcuts always work.
         tableView.refusesFirstResponder = true
         tableView.dataSource = self
@@ -59,15 +60,21 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
         syncSelection()
     }
 
+    /// Highlights the images on the canvas: the current one, plus the other one in split and
+    /// difference views.
     private func syncSelection() {
         isSyncingSelection = true
         defer { isSyncingSelection = false }
-        if let current = imageSet.current, let row = imageSet.index(of: current) {
-            tableView.selectRowIndexes([row], byExtendingSelection: false)
-            tableView.scrollRowToVisible(row)
-        } else {
+        guard let current = imageSet.current, let row = imageSet.index(of: current) else {
             tableView.deselectAll(nil)
+            return
         }
+        var rows: IndexSet = [row]
+        if imageSet.mode != .single, let other = imageSet.other, let otherRow = imageSet.index(of: other) {
+            rows.insert(otherRow)
+        }
+        tableView.selectRowIndexes(rows, byExtendingSelection: false)
+        tableView.scrollRowToVisible(row)
     }
 
     // MARK: - Rows
@@ -83,20 +90,28 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
         return cell
     }
 
+    /// A click shows the clicked image, whatever modifiers are held.
+    func tableView(_ tableView: NSTableView, selectionIndexesForProposedSelection proposed: IndexSet) -> IndexSet {
+        guard !isSyncingSelection, tableView.clickedRow >= 0 else { return proposed }
+        return [tableView.clickedRow]
+    }
+
     func tableViewSelectionDidChange(_ notification: Notification) {
         guard !isSyncingSelection, let item = imageSet.items[safe: tableView.selectedRow] else { return }
         imageSet.select(item)
+        syncSelection()
     }
 
-    /// "L"/"R" or "U"/"D" for the two sides of a split, otherwise a Tab marker on the image Tab flips to.
-    private func badge(for item: ImageItem) -> String? {
+    /// Which half each image of a split is in, otherwise a Tab marker on the image Tab flips to.
+    private func badge(for item: ImageItem) -> ImageRowView.Badge? {
         guard let current = imageSet.current, let other = imageSet.other, item === current || item === other else { return nil }
-        if imageSet.mode == .split {
-            let currentFirst = (imageSet.index(of: current) ?? 0) < (imageSet.index(of: other) ?? 0)
-            let (first, second) = imageSet.splitLayout == .sideBySide ? ("L", "R") : ("U", "D")
-            return (item === current) == currentFirst ? first : second
+        if imageSet.mode == .split, let pair = imageSet.splitPair {
+            let (first, second) = imageSet.splitLayout == .sideBySide
+                ? ("rectangle.lefthalf.filled", "rectangle.righthalf.filled")
+                : ("rectangle.tophalf.filled", "rectangle.bottomhalf.filled")
+            return .symbol(item === pair.first ? first : second)
         }
-        return item === other ? "⇥" : nil
+        return item === other ? .key("⇥") : nil
     }
 
     private func detail(for item: ImageItem) -> String {

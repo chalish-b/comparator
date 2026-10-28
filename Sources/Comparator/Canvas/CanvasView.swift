@@ -50,6 +50,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
         fontSize: 11, monospacedDigits: true, symbol: "arrow.up.left.and.down.right.magnifyingglass"
     )
     private let noisePill = HUDLabel(fontSize: 11, monospacedDigits: true, symbol: "waveform.path")
+    private let swapPill = HUDLabel(fontSize: 11, symbol: "arrow.left.arrow.right")
     private let statusRow = NSStackView()
     private let firstTag = HUDLabel(fontSize: 12, weight: .medium)
     private let secondTag = HUDLabel(fontSize: 12, weight: .medium)
@@ -119,7 +120,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
         for label in [flashLabel, centerTag, firstTag, secondTag, messageLabel, helpLabel] {
             addSubview(label)
         }
-        for pill in [zoomPill, aligningPill, offsetPill, scalePill, differencePill, noisePill] {
+        for pill in [zoomPill, swapPill, aligningPill, offsetPill, scalePill, differencePill, noisePill] {
             statusRow.addArrangedSubview(pill)
         }
         statusRow.orientation = .horizontal
@@ -297,12 +298,13 @@ final class CanvasView: NSView, NSMenuItemValidation {
         setZoom(actualPixelsZoom * pow(2, next), around: zoomAnchor)
     }
 
+    private var mouseLocation: CGPoint? {
+        window.map { convert($0.mouseLocationOutsideOfEventStream, from: nil) }
+    }
+
     /// The mouse location if it's over the canvas, otherwise the center of the visible area.
     private var zoomAnchor: CGPoint {
-        if let window {
-            let mouse = convert(window.mouseLocationOutsideOfEventStream, from: nil)
-            if bounds.contains(mouse) { return mouse }
-        }
+        if let mouse = mouseLocation, bounds.contains(mouse) { return mouse }
         return CGPoint(x: safeAreaRect.midX, y: safeAreaRect.midY)
     }
 
@@ -369,8 +371,8 @@ final class CanvasView: NSView, NSMenuItemValidation {
         case .single:
             return .single(current)
         case .split:
-            let currentFirst = (imageSet.index(of: current) ?? 0) < (imageSet.index(of: other) ?? 0)
-            return currentFirst ? .split(first: current, second: other) : .split(first: other, second: current)
+            guard let pair = imageSet.splitPair else { return .single(current) }
+            return .split(first: pair.first, second: pair.second)
         case .difference:
             return .difference(top: current, bottom: other, gain: imageSet.gain)
         }
@@ -542,7 +544,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
     }
 
     private func updateStatusRow(_ composite: Composite) {
-        for pill in [zoomPill, aligningPill, offsetPill, scalePill, differencePill, noisePill] {
+        for pill in [zoomPill, swapPill, aligningPill, offsetPill, scalePill, differencePill, noisePill] {
             pill.text = nil
         }
         if case .empty = composite { return }
@@ -557,6 +559,9 @@ final class CanvasView: NSView, NSMenuItemValidation {
             scalePill.text = String(format: "%.2f%%", current.scale * 100)
         } else if case .difference(_, _, let gain) = composite {
             differencePill.text = "×\(Int(gain))"
+        } else if case .split = composite, imageSet.splitSwapped {
+            swapPill.setSymbol(imageSet.splitLayout == .sideBySide ? "arrow.left.arrow.right" : "arrow.up.arrow.down")
+            swapPill.text = "Swapped"
         }
         if imageSet.noiseView {
             noisePill.text = noiseDescription + (imageSet.isComputingNoise ? " (updating…)" : "")
@@ -587,7 +592,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
 
     private static let helpText = """
         1–9          Show image
-        Tab          Flip to last viewed image
+        Tab          Flip to last viewed image / swap split sides
         ↑ ↓          Previous / next image
         S            Split view
         ⇧S           Rotate split
@@ -602,7 +607,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
         Double-click Fit / 100%
         Drag         Pan
 
-        Hold ⌥       Alignment overlay
+        Hold ⌥       Alignment overlay (split: image under pointer)
         ⌥ drag       Move image
         ⌥ arrows     Nudge 1 px (⇧ for 0.1 px)
         ⌥ scroll     Scale image
@@ -641,6 +646,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
             return
         }
         if event.modifierFlags.contains(.option), imageSet.current?.isLoaded == true {
+            selectSplitImage(at: point)
             drag = .align(last: point)
             render()
             return
@@ -710,10 +716,22 @@ final class CanvasView: NSView, NSMenuItemValidation {
     override func flagsChanged(with event: NSEvent) {
         let held = event.modifierFlags.contains(.option)
         if held != optionHeld {
+            if held, let mouse = mouseLocation { selectSplitImage(at: mouse) }
             optionHeld = held
             render()
         }
         super.flagsChanged(with: event)
+    }
+
+    /// In split view, makes the image on the half under `point` the current one, so alignment
+    /// moves the image you point at.
+    private func selectSplitImage(at point: CGPoint) {
+        guard case .split(let first, let second) = composite(), safeAreaRect.contains(point) else { return }
+        let inFirst = switch imageSet.splitLayout {
+        case .sideBySide: point.x < dividerPosition
+        case .stacked: point.y >= dividerPosition
+        }
+        imageSet.select(inFirst ? first : second)
     }
 
     override func viewWillMove(toWindow newWindow: NSWindow?) {
@@ -886,8 +904,14 @@ final class CanvasView: NSView, NSMenuItemValidation {
         imageSet.step(-1)
     }
 
+    /// Swaps the sides in split view, otherwise flips to the last viewed image.
     @objc func flipImages(_ sender: Any?) {
-        imageSet.flip()
+        if imageSet.mode == .split {
+            imageSet.splitSwapped.toggle()
+            flash(imageSet.splitSwapped ? "Sides swapped" : "Sides in order")
+        } else {
+            imageSet.flip()
+        }
     }
 
     @objc func removeCurrentImage(_ sender: Any?) {
@@ -931,7 +955,10 @@ final class CanvasView: NSView, NSMenuItemValidation {
             return imageSet.noiseView
         case #selector(resetAlignment(_:)):
             return imageSet.current?.isAdjusted == true
-        case #selector(nextImage(_:)), #selector(previousImage(_:)), #selector(flipImages(_:)):
+        case #selector(flipImages(_:)):
+            menuItem.title = imageSet.mode == .split ? "Swap Split Sides" : "Flip to Last Viewed"
+            return imageSet.items.count > 1
+        case #selector(nextImage(_:)), #selector(previousImage(_:)):
             return imageSet.items.count > 1
         case #selector(removeCurrentImage(_:)), #selector(showInFinder(_:)):
             return hasCurrent

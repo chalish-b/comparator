@@ -57,7 +57,7 @@ The app icon is `Resources/AppIcon.icon`, made with Icon Composer. After editing
 | Key | Action |
 | --- | --- |
 | 1–9 | Show image |
-| Tab | Flip to the last viewed image |
+| Tab | Flip to the last viewed image; in split view, swap sides |
 | ↑ ↓ | Previous / next image |
 | S | Split view (lower-numbered image on the left) |
 | ⇧S | Rotate split: side by side / stacked (lower-numbered image on top) |
@@ -72,7 +72,7 @@ The app icon is `Resources/AppIcon.icon`, made with Icon Composer. After editing
 | Double-click | Fit / 100% |
 | Drag, two-finger scroll | Pan |
 | Pinch, mouse wheel | Zoom |
-| Hold ⌥ | Alignment overlay of the current image over the last viewed one |
+| Hold ⌥ | Alignment overlay of the current image over the last viewed one; in split view, of the image under the pointer over the other |
 | ⌥ drag | Move the current image |
 | ⌥ arrows | Nudge by 1 px (⇧ for 0.1 px) |
 | ⌥ scroll / pinch | Scale the current image |

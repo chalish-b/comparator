@@ -5,7 +5,8 @@ import AppKit
 final class HUDLabel: NSView {
     private let field = NSTextField(labelWithString: "")
     private var glass: NSView?
-    private let symbol: NSImage?
+    private let symbolConfiguration: NSImage.SymbolConfiguration
+    private var symbol: NSImage?
 
     /// `symbol` names an SF Symbol shown before the text. `monospacedDigits` keeps the label
     /// steady while numbers change.
@@ -16,11 +17,9 @@ final class HUDLabel: NSView {
         monospacedDigits: Bool = false,
         symbol: String? = nil
     ) {
-        self.symbol = symbol.map {
-            NSImage(systemSymbolName: $0, accessibilityDescription: nil)!
-                .withSymbolConfiguration(.init(pointSize: fontSize, weight: .medium))!
-        }
+        symbolConfiguration = .init(pointSize: fontSize, weight: .medium)
         super.init(frame: .zero)
+        self.symbol = symbol.map(image(forSymbol:))
         translatesAutoresizingMaskIntoConstraints = false
         isHidden = true
 
@@ -71,6 +70,15 @@ final class HUDLabel: NSView {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
+
+    private func image(forSymbol name: String) -> NSImage {
+        NSImage(systemSymbolName: name, accessibilityDescription: nil)!.withSymbolConfiguration(symbolConfiguration)!
+    }
+
+    /// Changes the SF Symbol shown before the text, taking effect the next time `text` is set.
+    func setSymbol(_ name: String) {
+        symbol = image(forSymbol: name)
+    }
 
     var font: NSFont { field.font! }
     var textColor: NSColor { field.textColor! }

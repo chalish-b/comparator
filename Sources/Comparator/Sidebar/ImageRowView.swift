@@ -1,6 +1,13 @@
 import AppKit
 
 final class ImageRowView: NSTableCellView {
+    /// A marker at the row's trailing edge: a shortcut that leads to the image, or an SF Symbol
+    /// for where it's shown.
+    enum Badge {
+        case key(String)
+        case symbol(String)
+    }
+
     static let identifier = NSUserInterfaceItemIdentifier("ImageRow")
 
     private let thumbnail = NSImageView()
@@ -8,6 +15,8 @@ final class ImageRowView: NSTableCellView {
     private let nameLabel = NSTextField(labelWithString: "")
     private let detailLabel = NSTextField(labelWithString: "")
     private let badge = NSTextField(labelWithString: "")
+    private let badgeSymbol = NSImageView()
+    private let badgeStack = NSStackView()
 
     init() {
         super.init(frame: .zero)
@@ -37,7 +46,15 @@ final class ImageRowView: NSTableCellView {
         badge.setContentHuggingPriority(.required, for: .horizontal)
         badge.setContentCompressionResistancePriority(.required, for: .horizontal)
 
-        for view in [keyLabel, thumbnail, nameLabel, detailLabel, badge] {
+        badgeSymbol.symbolConfiguration = .init(pointSize: 12, weight: .medium)
+        badgeSymbol.contentTintColor = .secondaryLabelColor
+        badgeSymbol.setContentHuggingPriority(.required, for: .horizontal)
+        badgeSymbol.setContentCompressionResistancePriority(.required, for: .horizontal)
+        badgeStack.addArrangedSubview(badge)
+        badgeStack.addArrangedSubview(badgeSymbol)
+        badgeStack.setHuggingPriority(.required, for: .horizontal)
+
+        for view in [keyLabel, thumbnail, nameLabel, detailLabel, badgeStack] {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
         }
@@ -53,28 +70,39 @@ final class ImageRowView: NSTableCellView {
             thumbnail.heightAnchor.constraint(equalToConstant: 44),
 
             nameLabel.leadingAnchor.constraint(equalTo: thumbnail.trailingAnchor, constant: 8),
-            nameLabel.trailingAnchor.constraint(equalTo: badge.leadingAnchor, constant: -4),
+            nameLabel.trailingAnchor.constraint(equalTo: badgeStack.leadingAnchor, constant: -4),
             nameLabel.bottomAnchor.constraint(equalTo: centerYAnchor, constant: -1),
 
             detailLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
             detailLabel.trailingAnchor.constraint(equalTo: nameLabel.trailingAnchor),
             detailLabel.topAnchor.constraint(equalTo: centerYAnchor, constant: 1),
 
-            badge.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
-            badge.centerYAnchor.constraint(equalTo: centerYAnchor),
+            badgeStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
+            badgeStack.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
 
-    func configure(index: Int, item: ImageItem, detail: String, badge badgeText: String?) {
+    func configure(index: Int, item: ImageItem, detail: String, badge rowBadge: Badge?) {
         keyLabel.stringValue = index < 9 ? "\(index + 1)" : ""
         thumbnail.image = item.thumbnail
         nameLabel.stringValue = item.name
         nameLabel.toolTip = item.url.path
         detailLabel.stringValue = detail
         detailLabel.textColor = item.error != nil ? .systemRed : .secondaryLabelColor
-        badge.stringValue = badgeText ?? ""
+        badge.isHidden = true
+        badgeSymbol.isHidden = true
+        switch rowBadge {
+        case .key(let text):
+            badge.stringValue = text
+            badge.isHidden = false
+        case .symbol(let name):
+            badgeSymbol.image = NSImage(systemSymbolName: name, accessibilityDescription: nil)
+            badgeSymbol.isHidden = false
+        case nil:
+            break
+        }
     }
 }
