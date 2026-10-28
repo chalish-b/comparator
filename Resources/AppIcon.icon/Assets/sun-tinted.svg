@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+<clipPath id="card"><rect x="140" y="214" width="744" height="596" rx="70"/></clipPath>
+<clipPath id="l"><rect x="0" y="0" width="557" height="1024"/></clipPath>
+<clipPath id="r"><rect x="557" y="0" width="467" height="1024"/></clipPath>
+
+</defs>
+<g clip-path="url(#card)">
+<circle cx="313" cy="348" r="72" fill="#FFF8E1"/>
+</g>
+</svg>

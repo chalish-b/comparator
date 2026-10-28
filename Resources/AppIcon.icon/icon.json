@@ -1,0 +1,121 @@
+{
+  "fill-specializations": [
+    {
+      "value": {
+        "automatic-gradient": "srgb:0.93725,0.94510,0.96078,1.00000"
+      }
+    },
+    {
+      "appearance": "dark",
+      "value": {
+        "automatic-gradient": "srgb:0.16471,0.17647,0.19608,1.00000"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Slider",
+      "layers": [
+        {
+          "glass": true,
+          "name": "Slider",
+          "image-name": "slider.svg"
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
+      }
+    },
+    {
+      "name": "Photo",
+      "layers": [
+        {
+          "glass": true,
+          "name": "Hills",
+          "image-name-specializations": [
+            {
+              "value": "hills.svg"
+            },
+            {
+              "appearance": "dark",
+              "value": "hills-dark.svg"
+            },
+            {
+              "appearance": "tinted",
+              "value": "hills-tinted.svg"
+            }
+          ]
+        },
+        {
+          "glass": true,
+          "name": "Mountains",
+          "image-name-specializations": [
+            {
+              "value": "mountains.svg"
+            },
+            {
+              "appearance": "dark",
+              "value": "mountains-dark.svg"
+            },
+            {
+              "appearance": "tinted",
+              "value": "mountains-tinted.svg"
+            }
+          ]
+        },
+        {
+          "glass": true,
+          "name": "Sun",
+          "image-name-specializations": [
+            {
+              "value": "sun.svg"
+            },
+            {
+              "appearance": "dark",
+              "value": "sun-dark.svg"
+            },
+            {
+              "appearance": "tinted",
+              "value": "sun-tinted.svg"
+            }
+          ]
+        },
+        {
+          "glass": true,
+          "name": "Sky",
+          "image-name-specializations": [
+            {
+              "value": "sky.svg"
+            },
+            {
+              "appearance": "dark",
+              "value": "sky-dark.svg"
+            },
+            {
+              "appearance": "tinted",
+              "value": "sky-tinted.svg"
+            }
+          ]
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}

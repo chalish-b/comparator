@@ -27,6 +27,8 @@ Requires the Xcode Command Line Tools.
 
 Quit the app before reinstalling.
 
+The app icon is `Resources/AppIcon.icon`, made with Icon Composer. After editing it, run `./scripts/compile-icon.sh` (requires Xcode) and commit the updated `Resources/AppIcon/`.
+
 ## Opening images
 
 - Select images in Finder → right-click → **Open With → Comparator**, or drop them on the Dock icon. Each opens as a new set (window or tab).

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+<clipPath id="card"><rect x="140" y="214" width="744" height="596" rx="70"/></clipPath>
+<clipPath id="l"><rect x="0" y="0" width="557" height="1024"/></clipPath>
+<clipPath id="r"><rect x="557" y="0" width="467" height="1024"/></clipPath>
+
+</defs>
+<g clip-path="url(#card)">
+<g clip-path="url(#l)"><path d="M140 810 L140 643.1 L326.0 470.3 L459.9 607.4 L623.6 464.3 L884 690.8 L884 810 Z" fill="#F2762A"/></g>
+<g clip-path="url(#r)"><path d="M140 810 L140 643.1 L326.0 470.3 L459.9 607.4 L623.6 464.3 L884 690.8 L884 810 Z" fill="#13307A"/></g>
+</g>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+<clipPath id="card"><rect x="140" y="214" width="744" height="596" rx="70"/></clipPath>
+<clipPath id="l"><rect x="0" y="0" width="557" height="1024"/></clipPath>
+<clipPath id="r"><rect x="557" y="0" width="467" height="1024"/></clipPath>
+<linearGradient id="sky-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7C3AED"/><stop offset="1" stop-color="#DB2777"/></linearGradient><linearGradient id="sky-r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1E3A8A"/><stop offset="1" stop-color="#0F172A"/></linearGradient>
+</defs>
+<g clip-path="url(#card)">
+<g clip-path="url(#l)"><rect x="140" y="214" width="744" height="596" fill="url(#sky-l)"/></g>
+<g clip-path="url(#r)"><rect x="140" y="214" width="744" height="596" fill="url(#sky-r)"/></g>
+</g>
+</svg>
