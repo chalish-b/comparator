@@ -12,7 +12,7 @@
 ![Comparator in split view, with a low-resolution image on the left and its upscaled version on the right](docs/screenshot.webp)
 
 - Switch between images without losing your place.
-- Split view with a draggable divider.
+- Split view, side by side or stacked, with a draggable divider.
 - Difference view to highlight the pixels that don't match.
 - Noise view that shows faint color patches and fine detail.
 - Move, nudge, or scale an image to line it up with another.
@@ -60,6 +60,7 @@ The app icon is `Resources/AppIcon.icon`, made with Icon Composer. After editing
 | Tab | Flip to the last viewed image |
 | ↑ ↓ | Previous / next image |
 | S | Split view (lower-numbered image on the left) |
+| ⇧S | Rotate split: side by side / stacked (lower-numbered image on top) |
 | D | Difference view |
 | N | Noise view |
 | [ ] | Difference gain, or noise view strength |

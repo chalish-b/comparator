@@ -8,7 +8,7 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
 
     private let modeControl = ToolbarSegments(
         symbols: ["rectangle", "rectangle.split.2x1", "circle.lefthalf.filled"],
-        toolTips: ["Single", "Split (S)", "Difference (D)"],
+        toolTips: ["Single", "Split (S). Click again to rotate (⇧S)", "Difference (D)"],
         trackingMode: .selectOne
     )
     private let noiseControl = ToolbarSegments(
@@ -92,6 +92,7 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
         } else {
             window.title = "New Set"
         }
+        modeControl.setSymbol(imageSet.splitLayout == .sideBySide ? "rectangle.split.2x1" : "rectangle.split.1x2", forSegment: 1)
         modeControl.selectedSegment = switch imageSet.mode {
         case .single: 0
         case .split: 1
@@ -102,6 +103,11 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
     }
 
     @objc private func modeChanged(_ sender: NSSegmentedControl) {
+        if sender.selectedSegment == 1, imageSet.mode == .split {
+            canvas.rotateSplit(sender)
+            window?.makeFirstResponder(canvas)
+            return
+        }
         imageSet.mode = switch sender.selectedSegment {
         case 1: .split
         case 2: .difference
@@ -184,9 +190,11 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
 /// width equally, and each tooltip covers its segment's full area.
 final class ToolbarSegments: NSSegmentedControl, NSViewToolTipOwner {
     private let toolTips: [String]
+    private var symbols: [String]
 
     init(symbols: [String], toolTips: [String], trackingMode: NSSegmentedControl.SwitchTracking) {
         self.toolTips = toolTips
+        self.symbols = symbols
         super.init(frame: .zero)
         segmentCount = symbols.count
         self.trackingMode = trackingMode
@@ -194,6 +202,12 @@ final class ToolbarSegments: NSSegmentedControl, NSViewToolTipOwner {
         for (segment, symbol) in symbols.enumerated() {
             setImage(NSImage(systemSymbolName: symbol, accessibilityDescription: toolTips[segment]), forSegment: segment)
         }
+    }
+
+    func setSymbol(_ symbol: String, forSegment segment: Int) {
+        guard symbols[segment] != symbol else { return }
+        symbols[segment] = symbol
+        setImage(NSImage(systemSymbolName: symbol, accessibilityDescription: toolTips[segment]), forSegment: segment)
     }
 
     @available(*, unavailable)

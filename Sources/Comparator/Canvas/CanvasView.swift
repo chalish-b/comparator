@@ -16,7 +16,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
     private enum Composite {
         case empty
         case single(ImageItem)
-        case split(left: ImageItem, right: ImageItem)
+        case split(first: ImageItem, second: ImageItem)
         case difference(top: ImageItem, bottom: ImageItem?, gain: CGFloat)
         case onion(top: ImageItem, bottom: ImageItem?)
     }
@@ -25,8 +25,8 @@ final class CanvasView: NSView, NSMenuItemValidation {
 
     private let host = LayerHostView()
     private let group = CALayer()
-    private let leftClip = CALayer()
-    private let rightClip = CALayer()
+    private let firstClip = CALayer()
+    private let secondClip = CALayer()
     private let divider = CALayer()
     private let knob = CALayer()
     private var imageLayers: [UUID: CALayer] = [:]
@@ -51,9 +51,13 @@ final class CanvasView: NSView, NSMenuItemValidation {
     )
     private let noisePill = HUDLabel(fontSize: 11, monospacedDigits: true, symbol: "waveform.path")
     private let statusRow = NSStackView()
-    private let leftTag = HUDLabel(fontSize: 12, weight: .medium)
-    private let rightTag = HUDLabel(fontSize: 12, weight: .medium)
+    private let firstTag = HUDLabel(fontSize: 12, weight: .medium)
+    private let secondTag = HUDLabel(fontSize: 12, weight: .medium)
     private let messageLabel = HUDLabel(fontSize: 14, weight: .medium)
+    private var firstTagLeading: NSLayoutConstraint!
+    private var firstTagTrailing: NSLayoutConstraint!
+    private var secondTagTop: NSLayoutConstraint!
+    private var secondTagBottom: NSLayoutConstraint!
     private let helpLabel = HUDLabel(fontSize: 12, monospaced: true)
     private var flashTask: Task<Void, Never>?
 
@@ -88,7 +92,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
 
     private func setUpLayers() {
         let root = host.root
-        for clip in [leftClip, rightClip] {
+        for clip in [firstClip, secondClip] {
             clip.masksToBounds = true
             clip.anchorPoint = .zero
         }
@@ -101,18 +105,18 @@ final class CanvasView: NSView, NSMenuItemValidation {
         knob.shadowRadius = 3
         knob.shadowOffset = .zero
         root.addSublayer(group)
-        root.addSublayer(leftClip)
-        root.addSublayer(rightClip)
+        root.addSublayer(firstClip)
+        root.addSublayer(secondClip)
         root.addSublayer(divider)
         root.addSublayer(knob)
-        for layer in [group, leftClip, rightClip, divider, knob] {
+        for layer in [group, firstClip, secondClip, divider, knob] {
             layer.actions = Self.noActions
         }
         applyAppearanceColors()
     }
 
     private func setUpHUD() {
-        for label in [flashLabel, centerTag, leftTag, rightTag, messageLabel, helpLabel] {
+        for label in [flashLabel, centerTag, firstTag, secondTag, messageLabel, helpLabel] {
             addSubview(label)
         }
         for pill in [zoomPill, aligningPill, offsetPill, scalePill, differencePill, noisePill] {
@@ -128,6 +132,10 @@ final class CanvasView: NSView, NSMenuItemValidation {
         helpLabel.isHidden = true
 
         let safe = safeAreaLayoutGuide
+        firstTagLeading = firstTag.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 12)
+        firstTagTrailing = firstTag.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -12)
+        secondTagTop = secondTag.topAnchor.constraint(equalTo: safe.topAnchor, constant: 12)
+        secondTagBottom = secondTag.bottomAnchor.constraint(equalTo: safe.bottomAnchor, constant: -12)
         NSLayoutConstraint.activate([
             centerTag.centerXAnchor.constraint(equalTo: safe.centerXAnchor),
             centerTag.topAnchor.constraint(equalTo: safe.topAnchor, constant: 12),
@@ -141,13 +149,13 @@ final class CanvasView: NSView, NSMenuItemValidation {
             statusRow.bottomAnchor.constraint(equalTo: safe.bottomAnchor, constant: -12),
             statusRow.trailingAnchor.constraint(lessThanOrEqualTo: safe.trailingAnchor, constant: -12),
 
-            leftTag.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 12),
-            leftTag.topAnchor.constraint(equalTo: safe.topAnchor, constant: 12),
-            leftTag.widthAnchor.constraint(lessThanOrEqualTo: safe.widthAnchor, multiplier: 0.3),
+            firstTagLeading,
+            firstTag.topAnchor.constraint(equalTo: safe.topAnchor, constant: 12),
+            firstTag.widthAnchor.constraint(lessThanOrEqualTo: safe.widthAnchor, multiplier: 0.3),
 
-            rightTag.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -12),
-            rightTag.topAnchor.constraint(equalTo: safe.topAnchor, constant: 12),
-            rightTag.widthAnchor.constraint(lessThanOrEqualTo: safe.widthAnchor, multiplier: 0.3),
+            secondTag.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -12),
+            secondTagTop,
+            secondTag.widthAnchor.constraint(lessThanOrEqualTo: safe.widthAnchor, multiplier: 0.3),
 
             messageLabel.centerXAnchor.constraint(equalTo: safe.centerXAnchor),
             messageLabel.centerYAnchor.constraint(equalTo: safe.centerYAnchor),
@@ -214,10 +222,33 @@ final class CanvasView: NSView, NSMenuItemValidation {
         )
     }
 
-    /// The split divider's position within the visible area, which excludes the sidebar.
-    private var dividerX: CGFloat {
+    /// The split divider's position within the visible area, which excludes the sidebar: its
+    /// x coordinate side by side, its y coordinate when stacked.
+    private var dividerPosition: CGFloat {
         let visible = safeAreaRect
-        return (visible.minX + visible.width * imageSet.splitPosition).rounded()
+        return switch imageSet.splitLayout {
+        case .sideBySide: (visible.minX + visible.width * imageSet.splitPosition).rounded()
+        case .stacked: (visible.maxY - visible.height * imageSet.splitPosition).rounded()
+        }
+    }
+
+    /// A band of `thickness` centered on the split divider, spanning the view.
+    private func dividerRect(thickness: CGFloat) -> CGRect {
+        let position = dividerPosition
+        return switch imageSet.splitLayout {
+        case .sideBySide: CGRect(x: position - thickness / 2, y: 0, width: thickness, height: bounds.height)
+        case .stacked: CGRect(x: 0, y: position - thickness / 2, width: bounds.width, height: thickness)
+        }
+    }
+
+    /// Where a click or drag at `point` would put the split divider.
+    private func splitPosition(at point: CGPoint) -> CGFloat {
+        let visible = safeAreaRect
+        let fraction = switch imageSet.splitLayout {
+        case .sideBySide: (point.x - visible.minX) / visible.width
+        case .stacked: (visible.maxY - point.y) / visible.height
+        }
+        return min(max(fraction, 0), 1)
     }
 
     // MARK: - Camera
@@ -339,7 +370,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
             return .single(current)
         case .split:
             let currentFirst = (imageSet.index(of: current) ?? 0) < (imageSet.index(of: other) ?? 0)
-            return currentFirst ? .split(left: current, right: other) : .split(left: other, right: current)
+            return currentFirst ? .split(first: current, second: other) : .split(first: other, second: current)
         case .difference:
             return .difference(top: current, bottom: other, gain: imageSet.gain)
         }
@@ -353,7 +384,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
         let scale = backingScale
         let root = host.root
         root.frame = bounds
-        for layer in [root, group, leftClip, rightClip, divider, knob] {
+        for layer in [root, group, firstClip, secondClip, divider, knob] {
             layer.contentsScale = scale
         }
 
@@ -364,8 +395,8 @@ final class CanvasView: NSView, NSMenuItemValidation {
         }
 
         group.sublayers = nil
-        leftClip.sublayers = nil
-        rightClip.sublayers = nil
+        firstClip.sublayers = nil
+        secondClip.sublayers = nil
         group.filters = nil
         group.frame = bounds
         root.backgroundColor = cgColor(Self.background)
@@ -379,14 +410,23 @@ final class CanvasView: NSView, NSMenuItemValidation {
         case .single(let item):
             group.addSublayer(imageLayer(for: item, origin: .zero))
 
-        case .split(let left, let right):
-            let x = dividerX
-            leftClip.frame = CGRect(x: 0, y: 0, width: x, height: bounds.height)
-            rightClip.frame = CGRect(x: x, y: 0, width: bounds.width - x, height: bounds.height)
-            leftClip.addSublayer(imageLayer(for: left, origin: .zero))
-            rightClip.addSublayer(imageLayer(for: right, origin: CGPoint(x: x, y: 0)))
-            divider.frame = CGRect(x: x - 0.5, y: 0, width: 1, height: bounds.height)
-            knob.frame = CGRect(x: x - 7, y: safeAreaRect.midY - 7, width: 14, height: 14)
+        case .split(let first, let second):
+            let position = dividerPosition
+            let knobCenter: CGPoint
+            switch imageSet.splitLayout {
+            case .sideBySide:
+                firstClip.frame = CGRect(x: 0, y: 0, width: position, height: bounds.height)
+                secondClip.frame = CGRect(x: position, y: 0, width: bounds.width - position, height: bounds.height)
+                knobCenter = CGPoint(x: position, y: safeAreaRect.midY)
+            case .stacked:
+                firstClip.frame = CGRect(x: 0, y: position, width: bounds.width, height: bounds.height - position)
+                secondClip.frame = CGRect(x: 0, y: 0, width: bounds.width, height: position)
+                knobCenter = CGPoint(x: safeAreaRect.midX, y: position)
+            }
+            firstClip.addSublayer(imageLayer(for: first, origin: firstClip.frame.origin))
+            secondClip.addSublayer(imageLayer(for: second, origin: secondClip.frame.origin))
+            divider.frame = dividerRect(thickness: 1)
+            knob.frame = CGRect(x: knobCenter.x - 7, y: knobCenter.y - 7, width: 14, height: 14)
             showsDivider = true
 
         case .difference(let top, let bottom, let gain):
@@ -404,8 +444,8 @@ final class CanvasView: NSView, NSMenuItemValidation {
             group.addSublayer(topLayer)
         }
 
-        leftClip.isHidden = !showsDivider
-        rightClip.isHidden = !showsDivider
+        firstClip.isHidden = !showsDivider
+        secondClip.isHidden = !showsDivider
         divider.isHidden = !showsDivider
         knob.isHidden = !showsDivider
 
@@ -477,17 +517,21 @@ final class CanvasView: NSView, NSMenuItemValidation {
             messageLabel.text = nil
         }
 
-        leftTag.text = nil
-        rightTag.text = nil
+        firstTag.text = nil
+        secondTag.text = nil
         centerTag.text = nil
+        // Side by side, the tags sit in the top corners; stacked, in the right corners.
+        let stacked = imageSet.splitLayout == .stacked
+        NSLayoutConstraint.deactivate(stacked ? [firstTagLeading, secondTagTop] : [firstTagTrailing, secondTagBottom])
+        NSLayoutConstraint.activate(stacked ? [firstTagTrailing, secondTagBottom] : [firstTagLeading, secondTagTop])
         switch composite {
         case .empty:
             break
         case .single(let item):
             centerTag.attributedText = tag(for: item, in: centerTag)
-        case .split(let left, let right):
-            leftTag.attributedText = tag(for: left, in: leftTag)
-            rightTag.attributedText = tag(for: right, in: rightTag)
+        case .split(let first, let second):
+            firstTag.attributedText = tag(for: first, in: firstTag)
+            secondTag.attributedText = tag(for: second, in: secondTag)
         case .difference(let top, let bottom, _):
             centerTag.attributedText = tag(for: top, "  −  ", bottom, in: centerTag)
         case .onion(let top, let bottom):
@@ -546,6 +590,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
         Tab          Flip to last viewed image
         ↑ ↓          Previous / next image
         S            Split view
+        ⇧S           Rotate split
         D            Difference view
         N            Noise view
         [ ]          Difference gain / noise strength
@@ -581,7 +626,8 @@ final class CanvasView: NSView, NSMenuItemValidation {
 
     override func resetCursorRects() {
         if case .split = composite() {
-            addCursorRect(CGRect(x: dividerX - 5, y: 0, width: 10, height: bounds.height), cursor: .resizeLeftRight)
+            let cursor: NSCursor = imageSet.splitLayout == .sideBySide ? .resizeLeftRight : .resizeUpDown
+            addCursorRect(dividerRect(thickness: 10), cursor: cursor)
         }
     }
 
@@ -599,7 +645,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
             render()
             return
         }
-        if case .split = composite(), abs(point.x - dividerX) <= 6 {
+        if case .split = composite(), dividerRect(thickness: 12).contains(point) {
             drag = .divider
             return
         }
@@ -614,8 +660,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
             drag = .pan(last: point)
             pan(by: CGPoint(x: point.x - last.x, y: point.y - last.y))
         case .divider:
-            let visible = safeAreaRect
-            imageSet.splitPosition = min(max((point.x - visible.minX) / visible.width, 0), 1)
+            imageSet.splitPosition = splitPosition(at: point)
         case .align(let last):
             drag = .align(last: point)
             if let current = imageSet.current {
@@ -698,7 +743,8 @@ final class CanvasView: NSView, NSMenuItemValidation {
             return
         }
         let option = modifiers.contains(.option)
-        let nudgeStep: CGFloat = modifiers.contains(.shift) ? 0.1 : 1
+        let shift = modifiers.contains(.shift)
+        let nudgeStep: CGFloat = shift ? 0.1 : 1
 
         switch event.keyCode {
         case 48: flipImages(nil); return
@@ -721,6 +767,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
         case "a": actualPixels(nil)
         case "=", "+": zoomIn(nil)
         case "-", "_": zoomOut(nil)
+        case "s" where shift: rotateSplit(nil)
         case "s": toggleSplit(nil)
         case "d": toggleDifference(nil)
         case "p": togglePixelated(nil)
@@ -753,6 +800,12 @@ final class CanvasView: NSView, NSMenuItemValidation {
 
     @objc func toggleSplit(_ sender: Any?) {
         imageSet.mode = imageSet.mode == .split ? .single : .split
+    }
+
+    /// Switches between side-by-side and stacked split view, entering split view if needed.
+    @objc func rotateSplit(_ sender: Any?) {
+        imageSet.splitLayout = imageSet.splitLayout == .sideBySide ? .stacked : .sideBySide
+        imageSet.mode = .split
     }
 
     @objc func toggleDifference(_ sender: Any?) {

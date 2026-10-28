@@ -88,12 +88,13 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
         imageSet.select(item)
     }
 
-    /// "L"/"R" for the two sides of a split, otherwise a Tab marker on the image Tab flips to.
+    /// "L"/"R" or "U"/"D" for the two sides of a split, otherwise a Tab marker on the image Tab flips to.
     private func badge(for item: ImageItem) -> String? {
         guard let current = imageSet.current, let other = imageSet.other, item === current || item === other else { return nil }
         if imageSet.mode == .split {
             let currentFirst = (imageSet.index(of: current) ?? 0) < (imageSet.index(of: other) ?? 0)
-            return (item === current) == currentFirst ? "L" : "R"
+            let (first, second) = imageSet.splitLayout == .sideBySide ? ("L", "R") : ("U", "D")
+            return (item === current) == currentFirst ? first : second
         }
         return item === other ? "⇥" : nil
     }

@@ -4,6 +4,12 @@ enum ViewMode {
     case single, split, difference
 }
 
+/// How split view divides the canvas: a vertical divider with images side by side, or a
+/// horizontal one with images stacked. The lower-numbered image goes on the left or top.
+enum SplitLayout {
+    case sideBySide, stacked
+}
+
 enum AlignOverlay {
     case difference, onion
 }
@@ -23,7 +29,7 @@ final class ComparisonSet {
         static let content = Change(rawValue: 1 << 1)
         /// The current or other image changed.
         static let selection = Change(rawValue: 1 << 2)
-        /// Mode, split position, gain, pixel filter or align overlay changed.
+        /// Mode, split layout or position, gain, pixel filter or align overlay changed.
         static let display = Change(rawValue: 1 << 3)
         /// An image's offset or scale changed.
         static let alignment = Change(rawValue: 1 << 4)
@@ -47,7 +53,11 @@ final class ComparisonSet {
     var mode: ViewMode = .single {
         didSet { if mode != oldValue { notify(.display) } }
     }
-    /// Divider position in split mode, as a fraction of the canvas width.
+    var splitLayout: SplitLayout = .sideBySide {
+        didSet { if splitLayout != oldValue { notify(.display) } }
+    }
+    /// Divider position in split mode, as a fraction of the canvas width from the left, or
+    /// of its height from the top when stacked.
     var splitPosition: CGFloat = 0.5 {
         didSet { notify(.display) }
     }

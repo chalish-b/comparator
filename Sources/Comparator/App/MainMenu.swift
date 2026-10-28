@@ -62,6 +62,7 @@ enum MainMenu {
         let menu = NSMenu(title: "View")
         menu.addItem(item("Single", #selector(CanvasView.showSingle(_:))))
         menu.addItem(item("Split", #selector(CanvasView.toggleSplit(_:)), "s", []))
+        menu.addItem(item("Rotate Split", #selector(CanvasView.rotateSplit(_:)), "s", [.shift]))
         menu.addItem(item("Difference", #selector(CanvasView.toggleDifference(_:)), "d", []))
         menu.addItem(.separator())
         menu.addItem(item("Noise View", #selector(CanvasView.toggleNoiseView(_:)), "n", []))
