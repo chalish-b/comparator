@@ -1,6 +1,20 @@
-# Comparator
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/icon-dark.png">
+    <img src="docs/icon-light.png" width="128" alt="">
+  </picture>
+</p>
 
-A small macOS app for comparing images: switch between them with number keys while zoom and pan stay put, compare two side by side with a split slider, or look at their difference.
+<h1 align="center">Comparator</h1>
+
+<p align="center">Small and fast image comparison tool for macOS.</p>
+
+- Switch between images without losing your place.
+- Split view with a draggable divider.
+- Difference view to highlight the pixels that don't match.
+- Noise view that shows faint color patches and fine detail.
+- Move, nudge, or scale an image to line it up with another.
+- Images reload automatically when they change on disk.
 
 ## Install
 
@@ -27,7 +41,7 @@ Requires the Xcode Command Line Tools.
 
 Quit the app before reinstalling.
 
-The app icon is `Resources/AppIcon.icon`, made with Icon Composer. After editing it, run `./scripts/compile-icon.sh` (requires Xcode) and commit the updated `Resources/AppIcon/`.
+The app icon is `Resources/AppIcon.icon`, made with Icon Composer. After editing it, run `./scripts/compile-icon.sh` (requires Xcode) and commit the updated `Resources/AppIcon/` and `docs/icon-*.png`.
 
 ## Opening images
 
