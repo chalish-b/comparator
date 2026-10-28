@@ -60,7 +60,7 @@ final class ComparisonSet {
             notify(.display)
         }
     }
-    var alignOverlay: AlignOverlay = UserDefaults.standard.string(forKey: "alignOverlay") == "onion" ? .onion : .difference {
+    var alignOverlay: AlignOverlay = UserDefaults.standard.string(forKey: "alignOverlay") == "difference" ? .difference : .onion {
         didSet {
             UserDefaults.standard.set(alignOverlay == .onion ? "onion" : "difference", forKey: "alignOverlay")
             notify(.display)
