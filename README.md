@@ -9,7 +9,10 @@
 
 <p align="center">Small and fast image comparison tool for macOS.</p>
 
-![Comparator in split view, with a low-resolution image on the left and its upscaled version on the right](docs/screenshot.webp)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-dark.webp">
+  <img src="docs/screenshot-light.webp" alt="Comparator in split view, with a low-resolution image on the left and its upscaled version on the right">
+</picture>
 
 - Switch between images without losing your place.
 - Split view, side by side or stacked, with a draggable divider.
