@@ -39,7 +39,7 @@ if [[ "$REPLY" != [yY] ]]; then
   exit 0
 fi
 
-NOTES="Install: download the DMG below and drag Comparator into Applications. macOS blocks the first launch because the app isn't signed with an Apple developer certificate — see [Install](https://github.com/chalish-b/comparator#install) for how to allow it."
+NOTES="Install: download the DMG below and drag Comparator into Applications. macOS blocks the first launch because the app isn't signed with an Apple developer certificate. See [Install](https://github.com/chalish-b/comparator#install) for how to allow it."
 
 git push origin HEAD
 gh release create "$TAG" "$DMG" --target "$(git rev-parse HEAD)" --title "$APP_NAME $VERSION" --notes "$NOTES" --generate-notes
