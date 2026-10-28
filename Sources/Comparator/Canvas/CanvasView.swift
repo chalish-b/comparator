@@ -37,6 +37,9 @@ final class CanvasView: NSView, NSMenuItemValidation {
     private var hadContent = false
     private var optionHeld = false
     private var drag: Drag?
+    /// A zoom and center waiting for every image to load, since zoom percentages depend on
+    /// image sizes.
+    private var pendingView: (zoomPercent: CGFloat?, center: CGPoint?)?
 
     private let flashLabel = HUDLabel(fontSize: 12, weight: .medium)
     private let centerTag = HUDLabel(fontSize: 13, weight: .semibold)
@@ -182,6 +185,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
             fit()
         }
         hadContent = hasContent
+        applyPendingView()
 
         if change.contains(.reload), let item = imageSet.lastReloaded, item === imageSet.current || item === imageSet.other {
             flash("Reloaded \(item.name)")
@@ -271,6 +275,36 @@ final class CanvasView: NSView, NSMenuItemValidation {
             y: content.midY + (available.midY - bounds.midY) / zoom
         )
         isFitted = true
+    }
+
+    /// Zooms to `zoomPercent` (or fits) and centers the visible area on `center`, given as
+    /// fractions of the first image, once every image has loaded.
+    func showView(zoomPercent: CGFloat?, center: CGPoint?) {
+        guard zoomPercent != nil || center != nil else { return }
+        pendingView = (zoomPercent, center)
+        applyPendingView()
+        render()
+    }
+
+    private func applyPendingView() {
+        guard let pending = pendingView,
+              imageSet.items.allSatisfy({ $0.isLoaded || $0.error != nil }),
+              let reference = imageSet.reference, let content = imageSet.contentBounds
+        else { return }
+        pendingView = nil
+        fit()
+        if let percent = pending.zoomPercent {
+            zoom = clampedZoom(actualPixelsZoom * percent / 100)
+        }
+        let frameHeight = reference.pixelSize.height / reference.pixelSize.width
+        let target = pending.center.map { CGPoint(x: $0.x, y: $0.y * frameHeight) }
+            ?? CGPoint(x: content.midX, y: content.midY)
+        let visible = safeAreaRect
+        center = CGPoint(
+            x: target.x - (visible.midX - bounds.midX) / zoom,
+            y: target.y + (visible.midY - bounds.midY) / zoom
+        )
+        isFitted = false
     }
 
     private func setZoom(_ value: CGFloat, around point: CGPoint) {

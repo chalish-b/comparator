@@ -52,6 +52,35 @@ The app icon is `Resources/AppIcon.icon`, made with Icon Composer. After editing
 - **⌘T** new empty set, **⌘O** open as a new set, **⇧⌘O** add to the current set.
 - Images that change on disk reload automatically, keeping your view.
 
+## Command line
+
+To open images from a terminal, link the `comparator` command into a folder on your `PATH`:
+
+```sh
+sudo mkdir -p /usr/local/bin
+sudo ln -sf /Applications/Comparator.app/Contents/MacOS/Comparator /usr/local/bin/comparator
+```
+
+Then open images or folders as a new set, optionally with a view to start in:
+
+```sh
+comparator input.png upscaled.png
+comparator renders/ --split --zoom 400 --center 0.5,0.3
+```
+
+| Option | Effect |
+| --- | --- |
+| `--split`, `--stacked` | Split view, side by side or stacked |
+| `--difference` | Difference view |
+| `--swap` | Swap the split sides |
+| `--show A[,B]` | Show image A, or images A and B with B as the current one |
+| `--zoom N` | Zoom to N percent (default: fit) |
+| `--center X,Y` | Center the view on this point of the first image, from `0,0` (top left) to `1,1` (bottom right) |
+| `--divider F` | Split divider position, from 0 to 1 |
+| `--pixels`, `--smooth` | Pixels or smooth filtering |
+
+`comparator --help` lists these in the terminal.
+
 ## Shortcuts
 
 | Key | Action |

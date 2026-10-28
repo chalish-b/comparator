@@ -3,6 +3,7 @@ import AppKit
 @main
 enum Main {
     @MainActor static func main() {
+        if CommandLineTool.isInvoked { CommandLineTool.run() }
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate

@@ -3,8 +3,8 @@
 # --install, also copies it to ~/Applications and registers it so it shows up in
 # Finder's "Open With" menu.
 #
-# The dev build has its own name and bundle identifier, so it can be installed
-# and run alongside the released app and keeps separate settings.
+# The dev build has its own name, bundle identifier and URL scheme, so it can be
+# installed and run alongside the released app and keeps separate settings.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -49,6 +49,7 @@ if ! $RELEASE; then
     -c "Set :CFBundleIdentifier $BUNDLE_ID.dev" \
     -c "Set :CFBundleName $DISPLAY_NAME" \
     -c "Set :CFBundleDisplayName $DISPLAY_NAME" \
+    -c "Set :CFBundleURLTypes:0:CFBundleURLSchemes:0 comparator-dev" \
     "$APP/Contents/Info.plist"
 fi
 codesign --force --sign - "$APP"

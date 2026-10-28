@@ -102,6 +102,19 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
         noiseControl.setSelected(imageSet.noiseView, forSegment: 0)
     }
 
+    func apply(_ request: OpenRequest) {
+        imageSet.add(request.files)
+        for number in request.show {
+            imageSet.select(index: number - 1)
+        }
+        if let layout = request.splitLayout { imageSet.splitLayout = layout }
+        imageSet.splitSwapped = request.swapped
+        if let divider = request.divider { imageSet.splitPosition = divider }
+        if let pixelated = request.pixelated { imageSet.pixelated = pixelated }
+        if let mode = request.mode { imageSet.mode = mode }
+        canvas.showView(zoomPercent: request.zoomPercent, center: request.center)
+    }
+
     @objc private func modeChanged(_ sender: NSSegmentedControl) {
         if sender.selectedSegment == 1, imageSet.mode == .split {
             canvas.rotateSplit(sender)

@@ -19,7 +19,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ sender: NSApplication, open urls: [URL]) {
-        open(ImageFiles.expand(urls))
+        let scheme = OpenRequest.scheme(ofAppAt: Bundle.main.bundleURL)
+        for url in urls where url.scheme == scheme {
+            if let request = OpenRequest(url: url) { open(request) }
+        }
+        open(ImageFiles.expand(urls.filter(\.isFileURL)))
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -54,12 +58,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        let keyController = NSApp.keyWindow?.windowController as? ComparisonWindowController
-        let candidates = [keyController].compactMap { $0 } + controllers
-        let controller = candidates.first { $0.imageSet.items.isEmpty } ?? makeController()
+        let controller = emptyOrNewController()
         controller.imageSet.add(urls)
         controller.showWindow(nil)
         lastOpen = (controller, Date())
+    }
+
+    /// Opens a request from the command line as a new set.
+    private func open(_ request: OpenRequest) {
+        let controller = emptyOrNewController()
+        controller.apply(request)
+        controller.showWindow(nil)
+        lastOpen = nil
+    }
+
+    private func emptyOrNewController() -> ComparisonWindowController {
+        let keyController = NSApp.keyWindow?.windowController as? ComparisonWindowController
+        let candidates = [keyController].compactMap { $0 } + controllers
+        return candidates.first { $0.imageSet.items.isEmpty } ?? makeController()
     }
 
     @objc func newDocument(_ sender: Any?) {
