@@ -10,9 +10,10 @@ APP="build/$APP_NAME.app"
 # macOS picks the app's look (Liquid Glass or the older design) from the SDK
 # version recorded in the binary. SwiftPM records the deployment target there,
 # so pass the installed SDK's version to the linker explicitly.
+# The binary is universal (Apple silicon and Intel).
 MIN_MACOS="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' Resources/Info.plist)"
 SDK_VERSION="$(xcrun --show-sdk-version)"
-BUILD_FLAGS=(-c release -Xlinker -platform_version -Xlinker macos -Xlinker "$MIN_MACOS" -Xlinker "$SDK_VERSION")
+BUILD_FLAGS=(-c release --arch arm64 --arch x86_64 -Xlinker -platform_version -Xlinker macos -Xlinker "$MIN_MACOS" -Xlinker "$SDK_VERSION")
 
 xcrun swift build "${BUILD_FLAGS[@]}" --product "$APP_NAME"
 BIN_DIR="$(xcrun swift build "${BUILD_FLAGS[@]}" --show-bin-path)"
