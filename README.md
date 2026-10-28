@@ -9,6 +9,8 @@
 
 <p align="center">Small and fast image comparison tool for macOS.</p>
 
+![Comparator in split view, with a low-resolution image on the left and its upscaled version on the right](docs/screenshot.webp)
+
 - Switch between images without losing your place.
 - Split view with a draggable divider.
 - Difference view to highlight the pixels that don't match.
