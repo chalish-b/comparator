@@ -20,7 +20,7 @@ if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
   exit 1
 fi
 
-scripts/build-app.sh
+scripts/build-app.sh --release
 
 # The git tag is the version's source of truth; stamp it into the built app.
 /usr/libexec/PlistBuddy \

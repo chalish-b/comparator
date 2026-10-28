@@ -7,8 +7,8 @@ A small macOS app for comparing images: switch between them with number keys whi
 Requires the Xcode Command Line Tools.
 
 ```sh
-./scripts/build-app.sh            # builds build/Comparator.app
-./scripts/build-app.sh --install  # also installs to ~/Applications and registers it with Finder
+./scripts/build-app.sh --release            # builds build/Comparator.app
+./scripts/build-app.sh --release --install  # also installs to ~/Applications and registers it with Finder
 ```
 
 Quit the app before reinstalling.

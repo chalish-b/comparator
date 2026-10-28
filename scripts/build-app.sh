@@ -1,11 +1,30 @@
 #!/usr/bin/env bash
-# Builds build/Comparator.app. With --install, also copies it to ~/Applications
-# and registers it so it shows up in Finder's "Open With" menu.
+# Builds build/Comparator Dev.app, or build/Comparator.app with --release. With
+# --install, also copies it to ~/Applications and registers it so it shows up in
+# Finder's "Open With" menu.
+#
+# The dev build has its own name and bundle identifier, so it can be installed
+# and run alongside the released app and keeps separate settings.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+RELEASE=false
+INSTALL=false
+for ARG in "$@"; do
+  case "$ARG" in
+    --release) RELEASE=true ;;
+    --install) INSTALL=true ;;
+    *) echo "usage: scripts/build-app.sh [--release] [--install]" >&2; exit 1 ;;
+  esac
+done
+
 APP_NAME=Comparator
-APP="build/$APP_NAME.app"
+if $RELEASE; then
+  DISPLAY_NAME="$APP_NAME"
+else
+  DISPLAY_NAME="$APP_NAME Dev"
+fi
+APP="build/$DISPLAY_NAME.app"
 
 # macOS picks the app's look (Liquid Glass or the older design) from the SDK
 # version recorded in the binary. SwiftPM records the deployment target there,
@@ -22,11 +41,19 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/$APP_NAME" "$APP/Contents/MacOS/$APP_NAME"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+if ! $RELEASE; then
+  BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Resources/Info.plist)"
+  /usr/libexec/PlistBuddy \
+    -c "Set :CFBundleIdentifier $BUNDLE_ID.dev" \
+    -c "Set :CFBundleName $DISPLAY_NAME" \
+    -c "Set :CFBundleDisplayName $DISPLAY_NAME" \
+    "$APP/Contents/Info.plist"
+fi
 codesign --force --sign - "$APP"
 echo "Built $APP"
 
-if [[ "${1:-}" == "--install" ]]; then
-  DEST="$HOME/Applications/$APP_NAME.app"
+if $INSTALL; then
+  DEST="$HOME/Applications/$DISPLAY_NAME.app"
   mkdir -p "$HOME/Applications"
   rm -rf "$DEST"
   cp -R "$APP" "$DEST"
