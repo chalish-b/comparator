@@ -2,6 +2,20 @@
 
 A small macOS app for comparing images: switch between them with number keys while zoom and pan stay put, compare two side by side with a split slider, or look at their difference.
 
+## Install
+
+Requires macOS 15 or later. Download `Comparator-<version>.dmg` from the [latest release](https://github.com/chalish-b/comparator/releases/latest), open it, and drag Comparator into Applications.
+
+Comparator isn't signed with an Apple developer certificate, so the first time you open it, macOS says it can't verify the app. To allow it, run this in Terminal:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/Comparator.app
+```
+
+Or click **Done**, open **System Settings → Privacy & Security**, scroll down to the message about Comparator, and click **Open Anyway**.
+
+You need to do this again after downloading a new version.
+
 ## Build
 
 Requires the Xcode Command Line Tools.
