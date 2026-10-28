@@ -2,7 +2,7 @@ import AppKit
 
 /// Lists the images in a set. Click to show one, drag to reorder, drop files to add.
 final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
-    private static let rowType = NSPasteboard.PasteboardType("dev.chalish.imgcompare.item")
+    private static let rowType = NSPasteboard.PasteboardType("dev.chalish.comparator.item")
 
     let imageSet: ComparisonSet
     private let tableView = NSTableView()

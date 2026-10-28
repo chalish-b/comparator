@@ -5,15 +5,15 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleExecutable</key>
-	<string>ImgCompare</string>
+	<string>Comparator</string>
 	<key>CFBundleIdentifier</key>
-	<string>dev.chalish.ImgCompare</string>
+	<string>dev.chalish.Comparator</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>ImgCompare</string>
+	<string>Comparator</string>
 	<key>CFBundleDisplayName</key>
-	<string>ImgCompare</string>
+	<string>Comparator</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

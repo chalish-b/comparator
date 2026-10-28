@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Builds build/ImgCompare.app. With --install, also copies it to ~/Applications
+# Builds build/Comparator.app. With --install, also copies it to ~/Applications
 # and registers it so it shows up in Finder's "Open With" menu.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-APP_NAME=ImgCompare
+APP_NAME=Comparator
 APP="build/$APP_NAME.app"
 
 # macOS picks the app's look (Liquid Glass or the older design) from the SDK

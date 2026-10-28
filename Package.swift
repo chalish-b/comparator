@@ -3,10 +3,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "ImgCompare",
+    name: "Comparator",
     platforms: [.macOS(.v15)],
     targets: [
-        .executableTarget(name: "ImgCompare")
+        .executableTarget(name: "Comparator")
     ],
     swiftLanguageModes: [.v6]
 )

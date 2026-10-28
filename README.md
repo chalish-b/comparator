@@ -1,4 +1,4 @@
-# ImgCompare
+# Comparator
 
 A small macOS app for comparing images: switch between them with number keys while zoom and pan stay put, compare two side by side with a split slider, or look at their difference.
 
@@ -7,7 +7,7 @@ A small macOS app for comparing images: switch between them with number keys whi
 Requires the Xcode Command Line Tools.
 
 ```sh
-./scripts/build-app.sh            # builds build/ImgCompare.app
+./scripts/build-app.sh            # builds build/Comparator.app
 ./scripts/build-app.sh --install  # also installs to ~/Applications and registers it with Finder
 ```
 
@@ -15,7 +15,7 @@ Quit the app before reinstalling.
 
 ## Opening images
 
-- Select images in Finder → right-click → **Open With → ImgCompare**, or drop them on the Dock icon. Each opens as a new set (window or tab).
+- Select images in Finder → right-click → **Open With → Comparator**, or drop them on the Dock icon. Each opens as a new set (window or tab).
 - Drop images or folders onto a window to add them to that set.
 - **⌘T** new empty set, **⌘O** open as a new set, **⇧⌘O** add to the current set.
 - Images that change on disk reload automatically, keeping your view.
