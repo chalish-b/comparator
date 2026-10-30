@@ -16,7 +16,7 @@
 
 - Switch between images without losing your place.
 - Split view, side by side or stacked, with a draggable divider.
-- Pin a reference image to keep it on screen while you switch between the others.
+- Pin a reference image to compare the others against, side by side or with a single key.
 - Difference view to highlight the pixels that don't match.
 - Noise view that shows faint color patches and fine detail.
 - Move, nudge, or scale an image to line it up with another.
@@ -94,7 +94,7 @@ comparator renders/ --split --zoom 400 --center 0.5,0.3
 | 1–9 | Show image; in split view, images go on alternating sides, so pressing two keys puts the first on the left and the second on the right |
 | Tab | Flip to the last viewed image |
 | ↑ ↓ | Previous / next image, in place of the current one |
-| L | Pin / unpin the image: it stays on screen, and other images replace only the other one |
+| L | Pin / unpin the image: in split and difference views it stays on screen, and other images replace only the other one |
 | `` ` `` | Show the pinned image / go back |
 | X | Swap split sides |
 | S | Split view (pinned or lower-numbered image on the left) |
