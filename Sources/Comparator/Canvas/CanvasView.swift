@@ -649,6 +649,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
         O            Overlay: difference / onion skin
 
         ⌫            Remove image from set
+        I            Show / hide info
         H            Show / hide this help
 
         ⌘T           New set
@@ -831,6 +832,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
         case ",", "<": decreaseNoiseRadius(nil)
         case ".", ">": increaseNoiseRadius(nil)
         case "h", "?", "/": toggleHelp(nil)
+        case "i": NSApp.sendAction(#selector(ComparisonWindowController.toggleInfo(_:)), to: nil, from: self)
         default: super.keyDown(with: event)
         }
     }

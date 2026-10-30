@@ -1,9 +1,11 @@
 import AppKit
 
 /// A window (or tab) showing one comparison set: the image list on the left, the canvas on the right.
-final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate {
+final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate, NSMenuItemValidation {
     let imageSet = ComparisonSet()
     let canvas: CanvasView
+    private let sidebarController: SidebarViewController
+    private let sidebarItem: NSSplitViewItem
     var onClose: (() -> Void)?
 
     private let modeControl = ToolbarSegments(
@@ -28,7 +30,9 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
         let canvasController = NSViewController()
         canvasController.view = canvas
 
-        let sidebar = NSSplitViewItem(sidebarWithViewController: SidebarViewController(set: imageSet))
+        sidebarController = SidebarViewController(set: imageSet)
+        let sidebar = NSSplitViewItem(sidebarWithViewController: sidebarController)
+        sidebarItem = sidebar
         sidebar.minimumThickness = 200
         sidebar.maximumThickness = 520
         let content = NSSplitViewItem(viewController: canvasController)
@@ -137,6 +141,23 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
     @objc private func filterChanged(_ sender: NSSegmentedControl) {
         canvas.togglePixelated(sender)
         window?.makeFirstResponder(canvas)
+    }
+
+    /// Shows or hides the Info section, showing the sidebar first if it's hidden.
+    @objc func toggleInfo(_ sender: Any?) {
+        if sidebarItem.isCollapsed {
+            sidebarController.setInfoExpanded(true)
+            sidebarItem.animator().isCollapsed = false
+        } else {
+            sidebarController.toggleInfo()
+        }
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(toggleInfo(_:)) {
+            menuItem.title = !sidebarItem.isCollapsed && sidebarController.isInfoExpanded ? "Hide Info" : "Show Info"
+        }
+        return true
     }
 
     @objc func addImages(_ sender: Any?) {

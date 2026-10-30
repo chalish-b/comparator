@@ -81,6 +81,7 @@ enum MainMenu {
         menu.addItem(item("Zoom Out", #selector(CanvasView.zoomOut(_:)), "-", []))
         menu.addItem(.separator())
         menu.addItem(item("Toggle Sidebar", #selector(NSSplitViewController.toggleSidebar(_:)), "s", [.command]))
+        menu.addItem(item("Show Info", #selector(ComparisonWindowController.toggleInfo(_:)), "i", []))
         menu.addItem(item("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control]))
         return menu
     }

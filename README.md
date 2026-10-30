@@ -19,6 +19,7 @@
 - Difference view to highlight the pixels that don't match.
 - Noise view that shows faint color patches and fine detail.
 - Move, nudge, or scale an image to line it up with another.
+- File and format details for each image, side by side when comparing two.
 - Images reload automatically when they change on disk.
 
 ## Install
@@ -111,6 +112,7 @@ comparator renders/ --split --zoom 400 --center 0.5,0.3
 | ⌥R | Reset alignment |
 | O | Alignment overlay style: difference / onion skin |
 | ⌫ | Remove the image from the set |
+| I | Show / hide image info |
 | H | Show / hide shortcuts |
 
 100% zoom means one pixel of the highest-resolution image per screen pixel. Smaller images (e.g. an upscaler's input) are scaled to match it.

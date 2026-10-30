@@ -379,6 +379,7 @@ final class ComparisonSet {
                     NSImage(cgImage: $0, size: NSSize(width: $0.width, height: $0.height))
                 }
                 item.stamp = decoded.stamp
+                item.info = decoded.info
                 item.error = nil
                 item.failedReloads = 0
                 if isReload {

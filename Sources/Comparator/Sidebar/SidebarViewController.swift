@@ -1,15 +1,27 @@
 import AppKit
 
-/// Lists the images in a set. Click to show one, drag to reorder, drop files to add.
+/// Lists the images in a set. Click to show one, drag to reorder, drop files to add. Below the
+/// list, a resizable Info section describes the images shown.
 final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
     private static let rowType = NSPasteboard.PasteboardType("dev.chalish.comparator.item")
 
     let imageSet: ComparisonSet
     private let tableView = NSTableView()
     private var isSyncingSelection = false
+    private let infoPanel: InfoPanelView
+    private var splitView: SidebarSplitView!
+
+    /// Whether the Info section shows its contents, and its height when it does. Shared by all windows.
+    private(set) var isInfoExpanded = UserDefaults.standard.object(forKey: "infoExpanded") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(isInfoExpanded, forKey: "infoExpanded") }
+    }
+    private var infoHeight = UserDefaults.standard.object(forKey: "infoHeight") as? CGFloat ?? 250 {
+        didSet { UserDefaults.standard.set(infoHeight, forKey: "infoHeight") }
+    }
 
     init(set: ComparisonSet) {
         self.imageSet = set
+        infoPanel = InfoPanelView(set: set)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -35,11 +47,24 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
         menu.delegate = self
         tableView.menu = menu
 
-        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 300, height: 600))
+        let scrollView = NSScrollView()
         scrollView.documentView = tableView
         scrollView.hasVerticalScroller = true
         scrollView.drawsBackground = false
-        view = scrollView
+
+        infoPanel.isExpanded = isInfoExpanded
+        infoPanel.onToggle = { [weak self] in self?.toggleInfo() }
+
+        splitView = SidebarSplitView(
+            top: scrollView,
+            bottom: infoPanel,
+            bottomHeight: isInfoExpanded ? infoHeight : InfoPanelView.headerHeight,
+            minimumBottomHeight: InfoPanelView.headerHeight
+        )
+        splitView.onDrag = { [weak self] height in self?.dividerDragged(to: height) }
+        infoPanel.onHeaderDragStart = { [weak self] event in self?.splitView.beginDividerDrag(with: event) }
+        infoPanel.onHeaderDrag = { [weak self] event in self?.splitView.continueDividerDrag(with: event) }
+        view = splitView
 
         imageSet.observe { [weak self] change in self?.setDidChange(change) }
     }
@@ -47,6 +72,30 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     override func viewDidLayout() {
         super.viewDidLayout()
         tableView.sizeLastColumnToFit()
+    }
+
+    // MARK: - Info section
+
+    func toggleInfo() {
+        setInfoExpanded(!isInfoExpanded)
+    }
+
+    func setInfoExpanded(_ expanded: Bool) {
+        isInfoExpanded = expanded
+        infoPanel.isExpanded = expanded
+        splitView.bottomHeight = expanded ? infoHeight : InfoPanelView.headerHeight
+    }
+
+    /// Dragging the divider down to the header collapses the section; dragging it up expands it.
+    private func dividerDragged(to height: CGFloat) {
+        let height = min(height, splitView.maximumBottomHeight)
+        let expanded = height > InfoPanelView.headerHeight + 8
+        if expanded { infoHeight = height }
+        if expanded != isInfoExpanded {
+            isInfoExpanded = expanded
+            infoPanel.isExpanded = expanded
+        }
+        splitView.bottomHeight = expanded ? height : InfoPanelView.headerHeight
     }
 
     private func setDidChange(_ change: ComparisonSet.Change) {
@@ -130,7 +179,7 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
         return parts.joined(separator: " · ")
     }
 
-    private static func format(ratio: CGFloat) -> String {
+    static func format(ratio: CGFloat) -> String {
         let rounded = (ratio * 100).rounded() / 100
         let text = rounded == rounded.rounded() ? String(Int(rounded)) : String(format: "%g", rounded)
         return "\(text)×"

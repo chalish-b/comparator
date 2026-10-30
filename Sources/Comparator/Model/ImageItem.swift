@@ -10,6 +10,7 @@ final class ImageItem {
     var thumbnail: NSImage?
     var pixelSize: CGSize = .zero
     var stamp: FileStamp?
+    var info: ImageInfo?
     var error: String?
 
     /// Translation applied on top of the default placement, in world units (the reference frame is 1 unit wide).

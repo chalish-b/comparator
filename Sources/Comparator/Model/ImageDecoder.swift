@@ -6,6 +6,7 @@ struct DecodedImage: @unchecked Sendable {
     let image: CGImage
     let thumbnail: CGImage?
     let stamp: FileStamp?
+    let info: ImageInfo
 }
 
 enum DecodeError: LocalizedError {
@@ -37,6 +38,7 @@ enum ImageDecoder {
         }
 
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        let info = ImageInfo(source: source, properties: properties, image: image)
         if let raw = properties?[kCGImagePropertyOrientation] as? UInt32,
            raw != 1,
            let orientation = CGImagePropertyOrientation(rawValue: raw),
@@ -51,7 +53,7 @@ enum ImageDecoder {
         ] as CFDictionary
         let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnailOptions)
 
-        return DecodedImage(image: image, thumbnail: thumbnail, stamp: stamp)
+        return DecodedImage(image: image, thumbnail: thumbnail, stamp: stamp, info: info)
     }
 
     private static func orient(_ image: CGImage, _ orientation: CGImagePropertyOrientation) -> CGImage? {
