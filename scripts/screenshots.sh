@@ -11,10 +11,11 @@ cd "$(dirname "$0")/.."
 
 IMAGES=test-images
 FILES=(base.png upscaled.png upscale-2.png clean.png)
-VIEW=(--split --pixels --show 1,2 --zoom 481 --center 0.2378,0.0805)
+VIEW=(--split --pixels --show 1,2 --pin 1 --zoom 481 --center 0.2378,0.0805)
 WINDOW_WIDTH=1200
 WINDOW_HEIGHT=750
 SIDEBAR_WIDTH=317
+INFO_HEIGHT=320
 
 APP="$HOME/Applications/Comparator Dev.app"
 EXECUTABLE="$APP/Contents/MacOS/Comparator"
@@ -63,6 +64,8 @@ defaults write "$DOMAIN" "NSWindow Frame ComparisonWindow" "200 200 $WINDOW_WIDT
 defaults write "$DOMAIN" "NSSplitView Subview Frames SidebarWidth" -array \
   "0.000000, 0.000000, $SIDEBAR_WIDTH.000000, $WINDOW_HEIGHT.000000, NO, NO" \
   "$SIDEBAR_WIDTH.000000, 0.000000, $CANVAS_WIDTH.000000, $WINDOW_HEIGHT.000000, NO, NO"
+defaults write "$DOMAIN" infoExpanded -bool YES
+defaults write "$DOMAIN" infoHeight -float "$INFO_HEIGHT"
 
 PATHS=()
 for FILE in "${FILES[@]}"; do PATHS+=("$PWD/$IMAGES/$FILE"); done
