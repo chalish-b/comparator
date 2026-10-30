@@ -108,14 +108,16 @@ final class ComparisonWindowController: NSWindowController, NSWindowDelegate, NS
 
     func apply(_ request: OpenRequest) {
         imageSet.add(request.files)
+        // The view comes first, since selecting images places them on the split's sides.
+        if let layout = request.splitLayout { imageSet.splitLayout = layout }
+        if let mode = request.mode { imageSet.mode = mode }
         for number in request.show {
             imageSet.select(index: number - 1)
         }
-        if let layout = request.splitLayout { imageSet.splitLayout = layout }
-        imageSet.splitSwapped = request.swapped
+        if let pin = request.pin, let item = imageSet.items[safe: pin - 1] { imageSet.togglePin(item) }
+        if request.swapped { imageSet.swapSides() }
         if let divider = request.divider { imageSet.splitPosition = divider }
         if let pixelated = request.pixelated { imageSet.pixelated = pixelated }
-        if let mode = request.mode { imageSet.mode = mode }
         canvas.showView(zoomPercent: request.zoomPercent, center: request.center)
     }
 

@@ -5,9 +5,16 @@ enum ViewMode {
 }
 
 /// How split view divides the canvas: a vertical divider with images side by side, or a
-/// horizontal one with images stacked. The lower-numbered image goes on the left or top.
+/// horizontal one with images stacked.
 enum SplitLayout {
     case sideBySide, stacked
+}
+
+/// A half of the split view: the left or top one, or the right or bottom one.
+enum SplitSide {
+    case first, second
+
+    var opposite: SplitSide { self == .first ? .second : .first }
 }
 
 enum AlignOverlay {
@@ -27,9 +34,9 @@ final class ComparisonSet {
         static let items = Change(rawValue: 1 << 0)
         /// An image finished loading (or failed to).
         static let content = Change(rawValue: 1 << 1)
-        /// The current or other image changed.
+        /// The current, other or pinned image changed.
         static let selection = Change(rawValue: 1 << 2)
-        /// Mode, split layout, order or position, gain, pixel filter or align overlay changed.
+        /// Mode, split layout, sides or position, gain, pixel filter or align overlay changed.
         static let display = Change(rawValue: 1 << 3)
         /// An image's offset or scale changed.
         static let alignment = Change(rawValue: 1 << 4)
@@ -46,19 +53,31 @@ final class ComparisonSet {
     private(set) var items: [ImageItem] = []
     /// The image being shown.
     private(set) var currentID: UUID?
-    /// The previously shown image: what Tab flips to, and the second image in split and difference views.
+    /// The second image in split and difference views: the pinned one, or else the previously
+    /// shown one.
     private(set) var otherID: UUID?
+    /// The image that stays on screen while others are selected. It's always the current or
+    /// other image.
+    private(set) var pinnedID: UUID?
+    /// In split view, the side the current image is on; the other image is on the opposite side.
+    private(set) var currentSide: SplitSide = .first
+    /// In split view, the side the next selected image goes on when no image is pinned. It
+    /// alternates, so selecting two images in a row puts the first on the left and the second
+    /// on the right.
+    private var nextSide: SplitSide = .first
+    /// Selected images, most recent last, each listed once. Tab goes back through it.
+    private var history: [UUID] = []
     private(set) var lastReloaded: ImageItem?
 
     var mode: ViewMode = .single {
-        didSet { if mode != oldValue { notify(.display) } }
+        didSet {
+            guard mode != oldValue else { return }
+            if mode == .split { arrangeSplit() }
+            notify(.display)
+        }
     }
     var splitLayout: SplitLayout = .sideBySide {
         didSet { if splitLayout != oldValue { notify(.display) } }
-    }
-    /// Puts the higher-numbered image on the left or top in split mode.
-    var splitSwapped = false {
-        didSet { notify(.display) }
     }
     /// Divider position in split mode, as a fraction of the canvas width from the left, or
     /// of its height from the top when stacked.
@@ -108,13 +127,27 @@ final class ComparisonSet {
 
     var current: ImageItem? { items.first { $0.id == currentID } }
     var other: ImageItem? { items.first { $0.id == otherID } }
+    var pinned: ImageItem? { items.first { $0.id == pinnedID } }
     var gain: CGFloat { Self.gains[gainIndex] }
 
     /// The current and other images in split view order: left to right, or top to bottom.
     var splitPair: (first: ImageItem, second: ImageItem)? {
         guard let current, let other else { return nil }
-        let currentFirst = ((index(of: current) ?? 0) < (index(of: other) ?? 0)) != splitSwapped
-        return currentFirst ? (current, other) : (other, current)
+        return currentSide == .first ? (current, other) : (other, current)
+    }
+
+    /// In split view, the side the next selected image goes on: the one opposite the pinned
+    /// image, otherwise alternating.
+    var nextSplitSide: SplitSide {
+        guard let pinnedID else { return nextSide }
+        return pinnedID == currentID ? currentSide.opposite : currentSide
+    }
+
+    /// The split side `item` is on, if it's one of the two images shown.
+    func side(of item: ImageItem) -> SplitSide? {
+        if item.id == currentID { return currentSide }
+        if item.id == otherID { return currentSide.opposite }
+        return nil
     }
     var noiseGain: CGFloat { Self.noiseGains[min(noiseGainIndex, Self.noiseGains.count - 1)] }
     /// Blur radius in pixels of the reference image.
@@ -152,9 +185,10 @@ final class ComparisonSet {
         if wasEmpty {
             currentID = first.id
             otherID = newItems.dropFirst().first?.id
+            history = [otherID, currentID].compactMap { $0 }
+            if mode == .split { arrangeSplit() }
         } else {
-            otherID = currentID
-            currentID = first.id
+            choose(first)
         }
 
         newItems.forEach { load($0) }
@@ -165,7 +199,10 @@ final class ComparisonSet {
     func remove(_ item: ImageItem) {
         guard let index = index(of: item) else { return }
         items.remove(at: index)
+        history.removeAll { $0 == item.id }
+        if item.id == pinnedID { pinnedID = nil }
         if item.id == currentID {
+            if otherID != nil { currentSide = currentSide.opposite }
             currentID = otherID ?? items[safe: min(index, items.count - 1)]?.id
             otherID = nil
         }
@@ -193,10 +230,11 @@ final class ComparisonSet {
 
     // MARK: - Selection
 
+    /// Shows `item` as the current image. In split view it goes on `nextSplitSide`; elsewhere
+    /// it replaces the other image, unless that's pinned.
     func select(_ item: ImageItem) {
-        guard item.id != currentID, index(of: item) != nil else { return }
-        otherID = currentID
-        currentID = item.id
+        guard index(of: item) != nil else { return }
+        choose(item)
         notify(.selection)
     }
 
@@ -205,14 +243,168 @@ final class ComparisonSet {
         select(item)
     }
 
-    func flip() {
-        guard let other else { return }
-        select(other)
+    private func choose(_ item: ImageItem) {
+        if mode == .split, other != nil {
+            if item.id == pinnedID {
+                // Already on screen, and it stays where it is.
+                focus(item)
+            } else {
+                place(item, on: nextSplitSide)
+                record(item)
+            }
+            return
+        }
+        record(item)
+        guard item.id != currentID else { return }
+        otherID = pinnedID.flatMap { $0 == item.id ? nil : $0 } ?? currentID
+        currentID = item.id
+        // A second image just joined the split.
+        if mode == .split { arrangeSplit() }
     }
 
+    private func record(_ item: ImageItem) {
+        history.removeAll { $0 == item.id }
+        history.append(item.id)
+        if history.count > 100 { history.removeFirst() }
+    }
+
+    /// Puts `item` on `side` of the split as the current image. If it's on the opposite side,
+    /// the two images swap; otherwise it replaces the image on `side`, unless that's pinned,
+    /// which then moves across. Unless `alternates` is false, the next image goes on the
+    /// opposite side.
+    private func place(_ item: ImageItem, on side: SplitSide, alternates: Bool = true) {
+        guard let onSide = side == currentSide ? current : other,
+              let opposite = side == currentSide ? other : current
+        else { return }
+        let keepsOnSide = item === opposite || (item !== onSide && onSide.id == pinnedID)
+        otherID = keepsOnSide ? onSide.id : opposite.id
+        currentID = item.id
+        currentSide = side
+        if alternates, pinnedID == nil { nextSide = side.opposite }
+    }
+
+    /// Shows `item` on `side` of the split. See `place(_:on:)`.
+    func show(_ item: ImageItem, on side: SplitSide) {
+        guard mode == .split, other != nil, index(of: item) != nil else { return }
+        place(item, on: side)
+        record(item)
+        notify(.selection)
+    }
+
+    /// The images on screen: the current one, and in split and difference views the other one.
+    private var onScreenIDs: Set<UUID?> {
+        Set(mode == .single ? [currentID] : [currentID, otherID])
+    }
+
+    /// The image Tab goes back to: the most recently selected one that isn't on screen.
+    var previous: ImageItem? {
+        let onScreen = onScreenIDs
+        let previousID = history.last { !onScreen.contains($0) } ?? (mode == .single ? otherID : nil)
+        return items.first { $0.id == previousID }
+    }
+
+    /// Shows `previous`. In single view it's selected as usual; in split and difference views it
+    /// replaces, in place, the image that isn't pinned, or else the latest selected one.
+    func showPrevious() {
+        guard let previous else { return }
+        let onScreen = onScreenIDs
+
+        if mode == .single || other == nil {
+            choose(previous)
+        } else {
+            let latest = history.last.flatMap { id in items.first { $0.id == id } }
+            let replaced: ImageItem? = if let pinned, let current, let other, onScreen.contains(pinned.id) {
+                pinned === current ? other : current
+            } else if let latest, onScreen.contains(latest.id) {
+                latest
+            } else {
+                current
+            }
+            guard let replaced else { return }
+            if mode == .split, let side = side(of: replaced) {
+                place(previous, on: side, alternates: false)
+            } else if replaced.id == currentID {
+                currentID = previous.id
+            } else {
+                otherID = currentID
+                currentID = previous.id
+                currentSide = currentSide.opposite
+            }
+            record(previous)
+        }
+        notify(.selection)
+    }
+
+    /// In single view, toggles between the pinned image and the one shown alongside it.
+    func togglePinnedFocus() {
+        guard mode == .single, let pinned, let other else { return }
+        focus(pinned === current ? other : pinned)
+    }
+
+    /// Makes `item`, if it's the other image shown, the current one without moving it.
+    func focus(_ item: ImageItem) {
+        guard item.id == otherID else { return }
+        swap(&currentID, &otherID)
+        currentSide = currentSide.opposite
+        notify(.selection)
+    }
+
+    /// Swaps the two images between the split sides. The side the next image goes on stays.
+    func swapSides() {
+        guard other != nil else { return }
+        currentSide = currentSide.opposite
+        notify(.display)
+    }
+
+    /// Lays out a new split: the pinned image, or else the lower-numbered one, goes first, and
+    /// the next selected image goes on the first side.
+    private func arrangeSplit() {
+        guard let current, let other else { return }
+        let currentFirst = if let pinnedID {
+            pinnedID == current.id
+        } else {
+            (index(of: current) ?? 0) < (index(of: other) ?? 0)
+        }
+        currentSide = currentFirst ? .first : .second
+        nextSide = .first
+    }
+
+    /// Replaces the current image in place with the next or previous one in the list, skipping
+    /// the pinned image and, in split and difference views, the other one shown. When the
+    /// pinned image is current, the image found replaces the other one instead.
     func step(_ delta: Int) {
-        guard let current, let index = index(of: current), items.count > 1 else { return }
-        select(index: (index + delta + items.count) % items.count)
+        guard let current, let start = index(of: current) else { return }
+        let skipped = Set([pinnedID, mode == .single ? nil : otherID].compactMap { $0 })
+        let count = items.count
+        let target = (1..<max(count, 1))
+            .map { items[((start + delta * $0) % count + count) % count] }
+            .first { $0.id != current.id && !skipped.contains($0.id) }
+        guard let target else { return }
+
+        if current.id == pinnedID {
+            choose(target)
+        } else if target.id == otherID {
+            swap(&currentID, &otherID)
+            currentSide = currentSide.opposite
+            record(target)
+        } else {
+            currentID = target.id
+            record(target)
+        }
+        notify(.selection)
+    }
+
+    /// Pins `item`, showing it if it isn't shown, or unpins it if it's pinned.
+    func togglePin(_ item: ImageItem) {
+        guard index(of: item) != nil else { return }
+        let wasPinned = item.id == pinnedID
+        nextSide = nextSplitSide
+        pinnedID = nil
+        if !wasPinned {
+            if item.id != currentID, item.id != otherID { choose(item) }
+            pinnedID = item.id
+        }
+        notify(.selection)
     }
 
     func changeGain(by delta: Int) {

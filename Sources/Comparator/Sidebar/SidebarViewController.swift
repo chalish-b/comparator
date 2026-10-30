@@ -137,7 +137,10 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let cell = tableView.makeView(withIdentifier: ImageRowView.identifier, owner: nil) as? ImageRowView ?? ImageRowView()
         let item = imageSet.items[row]
-        cell.configure(index: row, item: item, detail: detail(for: item), badge: badge(for: item))
+        cell.configure(index: row, item: item, detail: detail(for: item), badge: badge(for: item), pinned: item === imageSet.pinned)
+        cell.onTogglePin = { [weak self, weak item] in
+            if let item { self?.imageSet.togglePin(item) }
+        }
         return cell
     }
 
@@ -152,16 +155,15 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
         imageSet.select(item)
     }
 
-    /// Which half each image of a split is in, otherwise a Tab marker on the image Tab flips to.
+    /// Which half each image of a split is in, and a Tab marker on the image Tab goes back to.
     private func badge(for item: ImageItem) -> ImageRowView.Badge? {
-        guard let current = imageSet.current, let other = imageSet.other, item === current || item === other else { return nil }
-        if imageSet.mode == .split, let pair = imageSet.splitPair {
+        if imageSet.mode == .split, let pair = imageSet.splitPair, item === pair.first || item === pair.second {
             let (first, second) = imageSet.splitLayout == .sideBySide
                 ? ("rectangle.lefthalf.filled", "rectangle.righthalf.filled")
                 : ("rectangle.tophalf.filled", "rectangle.bottomhalf.filled")
             return .symbol(item === pair.first ? first : second)
         }
-        return item === other ? .key("⇥") : nil
+        return item === imageSet.previous ? .key("⇥") : nil
     }
 
     private func detail(for item: ImageItem) -> String {
@@ -235,15 +237,28 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
         menu.removeAllItems()
         guard let item = imageSet.items[safe: tableView.clickedRow] else { return }
 
+        let pin = NSMenuItem(title: item === imageSet.pinned ? "Unpin" : "Pin", action: #selector(togglePin(_:)), keyEquivalent: "")
         let reveal = NSMenuItem(title: "Show in Finder", action: #selector(showInFinder(_:)), keyEquivalent: "")
         let reset = NSMenuItem(title: "Reset Alignment", action: #selector(resetAlignment(_:)), keyEquivalent: "")
         let remove = NSMenuItem(title: "Remove from Set", action: #selector(remove(_:)), keyEquivalent: "")
         reset.isEnabled = item.isAdjusted
-        for menuItem in [reveal, reset, remove] {
+        var sides: [NSMenuItem] = []
+        if imageSet.mode == .split, imageSet.other != nil {
+            let names = imageSet.splitLayout == .sideBySide ? ("Left", "Right") : ("Top", "Bottom")
+            let first = NSMenuItem(title: "Show on \(names.0)", action: #selector(showOnFirstSide(_:)), keyEquivalent: "")
+            let second = NSMenuItem(title: "Show on \(names.1)", action: #selector(showOnSecondSide(_:)), keyEquivalent: "")
+            first.isEnabled = imageSet.side(of: item) != .first
+            second.isEnabled = imageSet.side(of: item) != .second
+            sides = [first, second]
+        }
+        for menuItem in [pin, reveal, reset, remove] + sides {
             menuItem.target = self
             menuItem.representedObject = item.id
         }
         menu.autoenablesItems = false
+        menu.addItem(pin)
+        sides.forEach(menu.addItem)
+        menu.addItem(.separator())
         menu.addItem(reveal)
         menu.addItem(reset)
         menu.addItem(.separator())
@@ -253,6 +268,18 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     private func item(for sender: Any?) -> ImageItem? {
         guard let id = (sender as? NSMenuItem)?.representedObject as? UUID else { return nil }
         return imageSet.items.first { $0.id == id }
+    }
+
+    @objc private func togglePin(_ sender: Any?) {
+        if let item = item(for: sender) { imageSet.togglePin(item) }
+    }
+
+    @objc private func showOnFirstSide(_ sender: Any?) {
+        if let item = item(for: sender) { imageSet.show(item, on: .first) }
+    }
+
+    @objc private func showOnSecondSide(_ sender: Any?) {
+        if let item = item(for: sender) { imageSet.show(item, on: .second) }
     }
 
     @objc private func showInFinder(_ sender: Any?) {

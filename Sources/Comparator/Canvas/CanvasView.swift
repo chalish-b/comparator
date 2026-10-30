@@ -53,7 +53,6 @@ final class CanvasView: NSView, NSMenuItemValidation {
         fontSize: 11, monospacedDigits: true, symbol: "arrow.up.left.and.down.right.magnifyingglass"
     )
     private let noisePill = HUDLabel(fontSize: 11, monospacedDigits: true, symbol: "waveform.path")
-    private let swapPill = HUDLabel(fontSize: 11, symbol: "arrow.left.arrow.right")
     private let statusRow = NSStackView()
     private let firstTag = HUDLabel(fontSize: 12, weight: .medium)
     private let secondTag = HUDLabel(fontSize: 12, weight: .medium)
@@ -123,7 +122,7 @@ final class CanvasView: NSView, NSMenuItemValidation {
         for label in [flashLabel, centerTag, firstTag, secondTag, messageLabel, helpLabel] {
             addSubview(label)
         }
-        for pill in [zoomPill, swapPill, aligningPill, offsetPill, scalePill, differencePill, noisePill] {
+        for pill in [zoomPill, aligningPill, offsetPill, scalePill, differencePill, noisePill] {
             statusRow.addArrangedSubview(pill)
         }
         statusRow.orientation = .horizontal
@@ -524,13 +523,22 @@ final class CanvasView: NSView, NSMenuItemValidation {
 
     // MARK: - HUD
 
-    /// The image's number, styled like the sidebar's key, followed by its name.
-    private func tag(for item: ImageItem, in label: HUDLabel) -> NSAttributedString {
+    /// The image's number, styled like the sidebar's key, followed by its name, after an
+    /// optional SF Symbol.
+    private func tag(for item: ImageItem, in label: HUDLabel, symbol: String? = nil) -> NSAttributedString {
+        let tag = NSMutableAttributedString()
+        if let symbol, let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: label.font.pointSize, weight: .medium)) {
+            let attachment = NSTextAttachment()
+            attachment.image = image
+            tag.append(NSAttributedString(attachment: attachment))
+            tag.append(NSAttributedString(string: "  "))
+        }
         let number = (imageSet.index(of: item) ?? 0) + 1
-        let tag = NSMutableAttributedString(string: "\(number)", attributes: [
+        tag.append(NSAttributedString(string: "\(number)", attributes: [
             .font: NSFont.monospacedDigitSystemFont(ofSize: label.font.pointSize, weight: .semibold),
             .foregroundColor: NSColor.secondaryLabelColor,
-        ])
+        ]))
         tag.append(NSAttributedString(string: "  " + item.name))
         return tag
     }
@@ -566,8 +574,8 @@ final class CanvasView: NSView, NSMenuItemValidation {
         case .single(let item):
             centerTag.attributedText = tag(for: item, in: centerTag)
         case .split(let first, let second):
-            firstTag.attributedText = tag(for: first, in: firstTag)
-            secondTag.attributedText = tag(for: second, in: secondTag)
+            firstTag.attributedText = tag(for: first, in: firstTag, symbol: splitTagSymbol(for: first))
+            secondTag.attributedText = tag(for: second, in: secondTag, symbol: splitTagSymbol(for: second))
         case .difference(let top, let bottom, _):
             centerTag.attributedText = tag(for: top, "  −  ", bottom, in: centerTag)
         case .onion(let top, let bottom):
@@ -577,8 +585,16 @@ final class CanvasView: NSView, NSMenuItemValidation {
         updateStatusRow(composite)
     }
 
+    /// A pin on the pinned image; without one, a mark on the image the next selection replaces.
+    private func splitTagSymbol(for item: ImageItem) -> String? {
+        if imageSet.pinned != nil {
+            return item === imageSet.pinned ? "pin.fill" : nil
+        }
+        return imageSet.side(of: item) == imageSet.nextSplitSide ? "arrow.right" : nil
+    }
+
     private func updateStatusRow(_ composite: Composite) {
-        for pill in [zoomPill, swapPill, aligningPill, offsetPill, scalePill, differencePill, noisePill] {
+        for pill in [zoomPill, aligningPill, offsetPill, scalePill, differencePill, noisePill] {
             pill.text = nil
         }
         if case .empty = composite { return }
@@ -593,9 +609,6 @@ final class CanvasView: NSView, NSMenuItemValidation {
             scalePill.text = String(format: "%.2f%%", current.scale * 100)
         } else if case .difference(_, _, let gain) = composite {
             differencePill.text = "×\(Int(gain))"
-        } else if case .split = composite, imageSet.splitSwapped {
-            swapPill.setSymbol(imageSet.splitLayout == .sideBySide ? "arrow.left.arrow.right" : "arrow.up.arrow.down")
-            swapPill.text = "Swapped"
         }
         if imageSet.noiseView {
             noisePill.text = noiseDescription + (imageSet.isComputingNoise ? " (updating…)" : "")
@@ -625,9 +638,12 @@ final class CanvasView: NSView, NSMenuItemValidation {
     }
 
     private static let helpText = """
-        1–9          Show image
-        Tab          Flip to last viewed image / swap split sides
+        1–9          Show image (split: on alternating sides)
+        Tab          Flip to last viewed image
         ↑ ↓          Previous / next image
+        L            Pin / unpin image
+        `            Show pinned image
+        X            Swap split sides
         S            Split view
         ⇧S           Rotate split
         D            Difference view
@@ -758,15 +774,15 @@ final class CanvasView: NSView, NSMenuItemValidation {
         super.flagsChanged(with: event)
     }
 
-    /// In split view, makes the image on the half under `point` the current one, so alignment
-    /// moves the image you point at.
+    /// In split view, makes the image on the half under `point` the current one without moving
+    /// it, so alignment moves the image you point at.
     private func selectSplitImage(at point: CGPoint) {
         guard case .split(let first, let second) = composite(), safeAreaRect.contains(point) else { return }
         let inFirst = switch imageSet.splitLayout {
         case .sideBySide: point.x < dividerPosition
         case .stacked: point.y >= dividerPosition
         }
-        imageSet.select(inFirst ? first : second)
+        imageSet.focus(inFirst ? first : second)
     }
 
     override func viewWillMove(toWindow newWindow: NSWindow?) {
@@ -825,6 +841,9 @@ final class CanvasView: NSView, NSMenuItemValidation {
         case "d": toggleDifference(nil)
         case "p": togglePixelated(nil)
         case "o": toggleAlignOverlay(nil)
+        case "l": togglePin(nil)
+        case "`": togglePinnedImage(nil)
+        case "x": swapSides(nil)
         case "r" where option: resetAlignment(nil)
         case "[": decreaseGain(nil)
         case "]": increaseGain(nil)
@@ -940,14 +959,23 @@ final class CanvasView: NSView, NSMenuItemValidation {
         imageSet.step(-1)
     }
 
-    /// Swaps the sides in split view, otherwise flips to the last viewed image.
     @objc func flipImages(_ sender: Any?) {
-        if imageSet.mode == .split {
-            imageSet.splitSwapped.toggle()
-            flash(imageSet.splitSwapped ? "Sides swapped" : "Sides in order")
-        } else {
-            imageSet.flip()
-        }
+        imageSet.showPrevious()
+    }
+
+    @objc func swapSides(_ sender: Any?) {
+        guard imageSet.mode == .split else { return }
+        imageSet.swapSides()
+    }
+
+    @objc func togglePinnedImage(_ sender: Any?) {
+        imageSet.togglePinnedFocus()
+    }
+
+    @objc func togglePin(_ sender: Any?) {
+        guard let current = imageSet.current else { return }
+        imageSet.togglePin(current)
+        flash(imageSet.pinned === current ? "Pinned \(current.name)" : "Unpinned \(current.name)")
     }
 
     @objc func removeCurrentImage(_ sender: Any?) {
@@ -992,8 +1020,15 @@ final class CanvasView: NSView, NSMenuItemValidation {
         case #selector(resetAlignment(_:)):
             return imageSet.current?.isAdjusted == true
         case #selector(flipImages(_:)):
-            menuItem.title = imageSet.mode == .split ? "Swap Split Sides" : "Flip to Last Viewed"
             return imageSet.items.count > 1
+        case #selector(swapSides(_:)):
+            return imageSet.mode == .split && imageSet.other != nil
+        case #selector(togglePinnedImage(_:)):
+            menuItem.state = imageSet.mode == .single && imageSet.pinned != nil && imageSet.pinned === imageSet.current ? .on : .off
+            return imageSet.mode == .single && imageSet.pinned != nil && imageSet.other != nil
+        case #selector(togglePin(_:)):
+            menuItem.title = imageSet.pinned != nil && imageSet.pinned === imageSet.current ? "Unpin Image" : "Pin Image"
+            return hasCurrent
         case #selector(nextImage(_:)), #selector(previousImage(_:)):
             return imageSet.items.count > 1
         case #selector(removeCurrentImage(_:)), #selector(showInFinder(_:)):

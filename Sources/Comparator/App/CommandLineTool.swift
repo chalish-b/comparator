@@ -27,7 +27,9 @@ enum CommandLineTool {
           --difference    Difference view
           --swap          Swap the split sides
           --show A[,B]    Show image A, or images A and B with B as the current one
+                          and A on the left or top in split view
                           (numbered from 1, like the 1–9 keys)
+          --pin N         Pin image N, keeping it on screen while others are shown
           --zoom N        Zoom percent, e.g. 400 (default: fit)
           --center X,Y    Center the view on this point of the first image, as fractions
                           of its size from 0,0 (top left) to 1,1 (bottom right)
@@ -106,6 +108,11 @@ enum CommandLineTool {
                     throw UsageError(message: "--show takes one or two image numbers, like 1,2")
                 }
                 request.show = numbers.compactMap { $0 }
+            case "--pin":
+                guard let number = Int(try value(for: option, inline: inline)), number >= 1 else {
+                    throw UsageError(message: "--pin takes an image number, like 1")
+                }
+                request.pin = number
             case "--zoom":
                 let text = try value(for: option, inline: inline)
                 guard let percent = Double(text.hasSuffix("%") ? String(text.dropLast()) : text), percent > 0 else {
@@ -129,6 +136,9 @@ enum CommandLineTool {
 
         if let highest = request.show.max(), highest > request.files.count {
             throw UsageError(message: "--show \(highest) is past the last image (\(request.files.count) opened)")
+        }
+        if let pin = request.pin, pin > request.files.count {
+            throw UsageError(message: "--pin \(pin) is past the last image (\(request.files.count) opened)")
         }
         return request
     }

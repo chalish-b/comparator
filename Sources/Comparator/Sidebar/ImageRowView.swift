@@ -17,6 +17,13 @@ final class ImageRowView: NSTableCellView {
     private let badge = NSTextField(labelWithString: "")
     private let badgeSymbol = NSImageView()
     private let badgeStack = NSStackView()
+    private let pinButton = NSButton()
+    private var isPinned = false
+    private var isHovered = false {
+        didSet { updatePinButton() }
+    }
+    /// Called when the pin button is clicked.
+    var onTogglePin: (() -> Void)?
 
     init() {
         super.init(frame: .zero)
@@ -54,7 +61,14 @@ final class ImageRowView: NSTableCellView {
         badgeStack.addArrangedSubview(badgeSymbol)
         badgeStack.setHuggingPriority(.required, for: .horizontal)
 
-        for view in [keyLabel, thumbnail, nameLabel, detailLabel, badgeStack] {
+        pinButton.isBordered = false
+        pinButton.imagePosition = .imageOnly
+        pinButton.symbolConfiguration = .init(pointSize: 11, weight: .medium)
+        pinButton.contentTintColor = .secondaryLabelColor
+        pinButton.target = self
+        pinButton.action = #selector(pinClicked)
+
+        for view in [keyLabel, thumbnail, nameLabel, detailLabel, pinButton, badgeStack] {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
         }
@@ -70,12 +84,16 @@ final class ImageRowView: NSTableCellView {
             thumbnail.heightAnchor.constraint(equalToConstant: 44),
 
             nameLabel.leadingAnchor.constraint(equalTo: thumbnail.trailingAnchor, constant: 8),
-            nameLabel.trailingAnchor.constraint(equalTo: badgeStack.leadingAnchor, constant: -4),
+            nameLabel.trailingAnchor.constraint(equalTo: pinButton.leadingAnchor, constant: -4),
             nameLabel.bottomAnchor.constraint(equalTo: centerYAnchor, constant: -1),
 
             detailLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
             detailLabel.trailingAnchor.constraint(equalTo: nameLabel.trailingAnchor),
             detailLabel.topAnchor.constraint(equalTo: centerYAnchor, constant: 1),
+
+            pinButton.trailingAnchor.constraint(equalTo: badgeStack.leadingAnchor, constant: -4),
+            pinButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            pinButton.widthAnchor.constraint(equalToConstant: 18),
 
             badgeStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
             badgeStack.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -85,7 +103,9 @@ final class ImageRowView: NSTableCellView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
 
-    func configure(index: Int, item: ImageItem, detail: String, badge rowBadge: Badge?) {
+    func configure(index: Int, item: ImageItem, detail: String, badge rowBadge: Badge?, pinned: Bool) {
+        isPinned = pinned
+        updatePinButton()
         keyLabel.stringValue = index < 9 ? "\(index + 1)" : ""
         thumbnail.image = item.thumbnail
         nameLabel.stringValue = item.name
@@ -104,6 +124,38 @@ final class ImageRowView: NSTableCellView {
         case nil:
             break
         }
+    }
+
+    // MARK: - Pin
+
+    /// The pin shows on the pinned image, and on any other row while the pointer is over it.
+    private func updatePinButton() {
+        pinButton.isHidden = !isPinned && !isHovered
+        pinButton.image = NSImage(systemSymbolName: isPinned ? "pin.fill" : "pin", accessibilityDescription: isPinned ? "Unpin" : "Pin")
+        pinButton.toolTip = isPinned ? "Unpin" : "Pin"
+    }
+
+    @objc private func pinClicked() {
+        onTogglePin?()
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas { removeTrackingArea(area) }
+        addTrackingArea(NSTrackingArea(
+            rect: .zero, options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect], owner: self
+        ))
+        if let window {
+            isHovered = bounds.contains(convert(window.mouseLocationOutsideOfEventStream, from: nil))
+        }
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        isHovered = true
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        isHovered = false
     }
 }
 

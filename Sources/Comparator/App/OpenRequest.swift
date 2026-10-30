@@ -9,6 +9,8 @@ struct OpenRequest {
     var swapped = false
     /// Images to select in order, numbered from 1; the last one becomes current.
     var show: [Int] = []
+    /// The image to pin, numbered from 1.
+    var pin: Int?
     var zoomPercent: CGFloat?
     /// View center as fractions of the first image's width and height, from its top left.
     var center: CGPoint?
@@ -32,6 +34,7 @@ struct OpenRequest {
         if splitLayout == .stacked { items.append(URLQueryItem(name: "layout", value: "stacked")) }
         if swapped { items.append(URLQueryItem(name: "swap", value: "1")) }
         if !show.isEmpty { items.append(URLQueryItem(name: "show", value: show.map(String.init).joined(separator: ","))) }
+        if let pin { items.append(URLQueryItem(name: "pin", value: "\(pin)")) }
         if let zoomPercent { items.append(URLQueryItem(name: "zoom", value: "\(zoomPercent)")) }
         if let center { items.append(URLQueryItem(name: "center", value: "\(center.x),\(center.y)")) }
         if let divider { items.append(URLQueryItem(name: "divider", value: "\(divider)")) }
@@ -54,6 +57,7 @@ struct OpenRequest {
             case "layout": splitLayout = value == "stacked" ? .stacked : .sideBySide
             case "swap": swapped = value == "1"
             case "show": show = value.split(separator: ",").compactMap { Int($0) }
+            case "pin": pin = Int(value)
             case "zoom": zoomPercent = Double(value).map { CGFloat($0) }
             case "center": center = Self.point(value)
             case "divider": divider = Double(value).map { CGFloat($0) }

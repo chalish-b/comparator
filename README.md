@@ -16,6 +16,7 @@
 
 - Switch between images without losing your place.
 - Split view, side by side or stacked, with a draggable divider.
+- Pin a reference image to keep it on screen while you switch between the others.
 - Difference view to highlight the pixels that don't match.
 - Noise view that shows faint color patches and fine detail.
 - Move, nudge, or scale an image to line it up with another.
@@ -77,7 +78,8 @@ comparator renders/ --split --zoom 400 --center 0.5,0.3
 | `--split`, `--stacked` | Split view, side by side or stacked |
 | `--difference` | Difference view |
 | `--swap` | Swap the split sides |
-| `--show A[,B]` | Show image A, or images A and B with B as the current one |
+| `--show A[,B]` | Show image A, or images A and B with B as the current one (A on the left in split view) |
+| `--pin N` | Pin image N |
 | `--zoom N` | Zoom to N percent (default: fit) |
 | `--center X,Y` | Center the view on this point of the first image, from `0,0` (top left) to `1,1` (bottom right) |
 | `--divider F` | Split divider position, from 0 to 1 |
@@ -89,11 +91,14 @@ comparator renders/ --split --zoom 400 --center 0.5,0.3
 
 | Key | Action |
 | --- | --- |
-| 1–9 | Show image |
-| Tab | Flip to the last viewed image; in split view, swap sides |
-| ↑ ↓ | Previous / next image |
-| S | Split view (lower-numbered image on the left) |
-| ⇧S | Rotate split: side by side / stacked (lower-numbered image on top) |
+| 1–9 | Show image; in split view, images go on alternating sides, so pressing two keys puts the first on the left and the second on the right |
+| Tab | Flip to the last viewed image |
+| ↑ ↓ | Previous / next image, in place of the current one |
+| L | Pin / unpin the image: it stays on screen, and other images replace only the other one |
+| `` ` `` | Show the pinned image / go back |
+| X | Swap split sides |
+| S | Split view (pinned or lower-numbered image on the left) |
+| ⇧S | Rotate split: side by side / stacked |
 | D | Difference view |
 | N | Noise view |
 | [ ] | Difference gain, or noise view strength |
@@ -105,7 +110,7 @@ comparator renders/ --split --zoom 400 --center 0.5,0.3
 | Double-click | Fit / 100% |
 | Drag, two-finger scroll | Pan |
 | Pinch, mouse wheel | Zoom |
-| Hold ⌥ | Alignment overlay of the current image over the last viewed one; in split view, of the image under the pointer over the other |
+| Hold ⌥ | Alignment overlay of the current image over the other one; in split view, of the image under the pointer over the other |
 | ⌥ drag | Move the current image |
 | ⌥ arrows | Nudge by 1 px (⇧ for 0.1 px) |
 | ⌥ scroll / pinch | Scale the current image |

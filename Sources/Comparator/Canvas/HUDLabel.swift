@@ -75,11 +75,6 @@ final class HUDLabel: NSView {
         NSImage(systemSymbolName: name, accessibilityDescription: nil)!.withSymbolConfiguration(symbolConfiguration)!
     }
 
-    /// Changes the SF Symbol shown before the text, taking effect the next time `text` is set.
-    func setSymbol(_ name: String) {
-        symbol = image(forSymbol: name)
-    }
-
     var font: NSFont { field.font! }
     var textColor: NSColor { field.textColor! }
 
